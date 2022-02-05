@@ -1,5 +1,6 @@
 import numpy as np
 import ffta
+from ffta.simulation import mechanical_drive_simple as cw
 
 from pulses import pulse_train, pulse, step
 from odes import dn_dt_g
@@ -220,8 +221,23 @@ def calc_n_pulse(intensity,
 
 def calc_gauss_volt(n_dens, lift = 20e-9, thickness = 500e-7):
     '''
-    Calculates the voltage using Gauss's law integration at a 20 nm lift height
+    Calculates the voltage using Gauss's law integration at a certain lift height
+    
+    Parameters
+    ----------
+    n_dens : flaot
+        Carrier density (electrons/cm^3)
+    lift : float
+        The lift height of the tip above the surface (m). The default is 20e-9.
+    thickness : float
+        Film thickness (m). The default is 500e-7.
+
+    Returns
+    -------
+    voltage : float
+        The calcualted voltage via Gauss's law (V)
     '''
+    
     # Electrostatics
     # 1/k * d2C/dz2 * V**2 --> Hz
     eps0 = 8.8e-12 # F/m
@@ -241,9 +257,20 @@ def calc_gauss_volt(n_dens, lift = 20e-9, thickness = 500e-7):
 def calc_omega0(voltage, resf = 350e3):
     '''
     Calculates the frequency shift assuming an input voltage
-    
-    resf: resonance frequency of the cantilever
+
+    Parameters
+    ----------
+    voltage : float
+        The voltage between the tip and sample (V).
+    resf : float, optional
+        The cantilever resonance frequency (Hz). The default is 350e3.
+
+    Returns
+    -------
+    omega0 : float
+        Resonance frequency shift of the cantilever (Hz)
     '''
+    
     k = 24 # N/m 
     fit_from_parms = 0.88
     d2cdz2 = fit_from_parms * 4 *k / resf
@@ -258,13 +285,32 @@ def calc_cantsim(tx, omega0, total_time=10e-3, resf=350e3):
     '''
     Simulates a cantilever using the supplied omega0 shift at each time.
     This method does not include a simulation for the electrostatic force directly.
+    
+    Parameters
+    ----------
+    tx : ndArray
+        Time axis for generating a cantilever.
+    omega0 : float
+        Resonance frequency shift of the cantilever (Hz).
+    total_time : float
+        Total time of the simulation (s). The default is 10e-3.
+    resf : float, optional
+        Resonance frequency of the cantilever (Hz). The default is 350e3.
+
+    Returns
+    -------
+    Z : ndArray
+        The simulated cantilever position over time (m).
+    can_params : dict
+        Cantilever simulation dictionary
     '''
+    
     sampling_rate = np.round(1/ (tx[1] - tx[0]), 0)
     
     can_params = ffta.simulation.utils.load.simulation_configuration('C:/Users/Raj/OneDrive/UW Work/Documents, Proposals, Papers/Grants and Proposals/2020_DOE_Perovskite_BES/Simulation/example_sim_params.cfg')
 
     k = 24 # N/m 
-    
+    start = tx[0]
     can_params[0]['res_freq'] = resf
     can_params[0]['drive_freq'] = resf
     can_params[0]['k'] = k
@@ -280,8 +326,25 @@ def calc_cantsim(tx, omega0, total_time=10e-3, resf=350e3):
 def calc_tfp(Z, can_params, method='stft', **kwargs):
     '''
     Generates the Pixel class response to see the FFtrEFM response given input deflection Z
+    
+    Parameters
+    ----------
+    Z : ndArray
+        The simulated cantilever position over time  (m)
+    can_params : dict
+        Cantilever simulation dictionary.
+    method : str
+        Pixel simulation method. One of 'hilbert' 'stft' 'wavelet' 'nfmd'. The default is 'stft'.
+    **kwargs : 
+        See ffta.pixel for acceptable parameters.
+
+    Returns
+    -------
+    pix: ffta.pixel.Pixel
+        Pixel class object of the processed cantilever motion
     '''
- 
+    parameters = {}
+    
     parameters['n_taps'] = 1199
     parameters['total_time'] = can_params[2]['total_time']
     parameters['trigger'] = max(can_params[2]['trigger'], 0)
@@ -299,3 +362,4 @@ def calc_tfp(Z, can_params, method='stft', **kwargs):
                                fit=False, trigger = can_params[2]['total_time']/2)
         pix.analyze()
 
+    return pix
