@@ -61,7 +61,7 @@ class IMSKPM:
         return
     
     def make_pulse(self, rise = 0, fall = 0, total_time = 10e-3, 
-                   start = 2.5e-3, pulse_width = 5e-3):
+                   start_time = 2.5e-3, pulse_width = 5e-3):
         
         if rise == 0 and fall == 0:
             
@@ -76,13 +76,13 @@ class IMSKPM:
             self.fall = max(fall, 1e-14)
             
         self.total_time = total_time
-        self.start = start
+        self.start_time = start_time
         self.pulse_width = pulse_width
         self.frequency = 1/total_time
         
-        if self.start + self.pulse_width > self.total_time:
+        if self.start_time + self.pulse_width > self.total_time:
             warnings.warn('Pulse exceeds total_time, cropping width to match')
-            self.pulse_width = self.total_time - self.start
+            self.pulse_width = self.total_time - self.start_time
         
         return
     
@@ -131,16 +131,17 @@ class IMSKPM:
             #                                    start=st, 
             #                                    imskpm=True, 
             #                                    maxcycles=30)
-            n_dens, sol, gen, impulse = calc_n_pulse(self.intensity,    
-                                                     self.absorbance,
-                                                     self.k1,
-                                                     self.k2,
-                                                     self.k3,
-                                                     self.rise,
-                                                     self.fall,
-                                                     self.pulse_width,
-                                                     self.total_time,
-                                                     self.square)
+            n_dens, sol, gen = calc_n_pulse(self.intensity,    
+                                            self.absorbance,
+                                            self.k1,
+                                            self.k2,
+                                            self.k3,
+                                            self.rise,
+                                            self.fall,
+                                            self.start_time,
+                                            self.pulse_width,
+                                            self.total_time,
+                                            self.square)
                                                      
 
             self.n_dens = n_dens

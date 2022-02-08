@@ -127,7 +127,7 @@ def calc_n_pulse_train(intensity,
     k2 = k2 / scale**3 #(from cm^3/s)
 
     sol = solve_ivp(dn_dt_g, (ty[0], ty[-1]), (gen[0],), t_eval = ty,
-                    args = (k1, k2, gen, ty[1]-ty[0]), max_step = dt)
+                    args = (k1, k2, k3, gen, ty[1]-ty[0]), max_step = dt)
 
     n_dens = sol.y.flatten()  # charge density in the film due to recombination + generation
 
@@ -205,12 +205,12 @@ def calc_n_pulse(intensity,
     k2 = k2 / scale**3 #(from cm^3/s)
     
     sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                    args = (k1, k2, gen, tx[1]-tx[0]))
+                    args = (k1, k2, k3, gen, tx[1]-tx[0]))
     
     if not any(np.where(sol.y.flatten() > 0)[0]):                
 
         sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                        args = (k1, k2, gen, tx[1]-tx[0]), max_step=1e-6)
+                        args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
     
     n_dens = sol.y.flatten()
     

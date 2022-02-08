@@ -35,7 +35,7 @@ def dn_dt(t, n, k1, k2, k3=0):
     
     return n_dot
 
-def dn_dt_g(t, n, k1, k2, pulse, dt):
+def dn_dt_g(t, n, k1, k2, k3, pulse, dt):
     '''
     Recombination+Generation equation, assuming no auger
     
@@ -62,9 +62,9 @@ def dn_dt_g(t, n, k1, k2, pulse, dt):
         differential carrier concentration w.r.t. time.
 
     '''
-    tidx = min(int(np.floor(t / dt), len(pulse)-1))
+    tidx = min(int(np.floor(t / dt)), len(pulse)-1)
     g = pulse[tidx]
     
-    n_dot = g - k1 * n - k2 * n**2
+    n_dot = g - k1 * n - k2 * n**2 - k3 * n**3
 
     return n_dot
