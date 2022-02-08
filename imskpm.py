@@ -8,7 +8,7 @@ Created on Fri Sep  4 15:26:28 2020
 import numpy as np
 from scipy.integrate import solve_ivp
 from calc_utils import gen_t
-from calc_utils import calc_n_pulse, calc_n_pulse_train, calc_gauss_volt, calc_omega0
+from calc_utils import calc_gauss_volt, calc_omega0
 from pulses import pulse
 from odes import dn_dt_g
 
@@ -27,6 +27,7 @@ class IMSKPM:
         # Active layer parameters
         self.kinetics(k1, k2, k3, absorbance=1)
         self.thickness = thickness
+        self.lift_height = 20e-9
         
         # Excitation parameters
         self.intensity = intensity #Incident intensity (W/cm^2, 0.1 = 1 Sun)
@@ -109,19 +110,23 @@ class IMSKPM:
     
     def pulse_train(self, total_time = None, max_cycles = None):
         '''
+        Creates a sequence of pulses by repeating self.pulse
+        Total_time sets the maximum time for the sequence.
+        Max_cycles will instead create the sequence through tiling
         
         Parameters
         ----------
-        total_time : TYPE, optional
-            DESCRIPTION. The default is None.
-        max_cycles : TYPE, optional
-            DESCRIPTION. The default is None.
+        total_time : float, optional
+            Total time of the pulse sequence (s). The default is None.
+        max_cycles : int, optional
+            Total number of cycles. The default is None.
 
         Raises
         ------
         AttributeError
             If missing both parameters
         '''
+        
         if total_time is None and max_cycles is None:
             raise AttributeError('Must specify either total_time or max_cycles')
         elif total_time is not None and max_cycles is not None:
@@ -197,6 +202,22 @@ class IMSKPM:
         return n_dens, sol, gen
     
     def simulate(self):
+        '''
+        Simulates the single pulse
+        
+        Attributes
+        ----------
+        n_dens : float
+            Char density in the film due to ODE (Generation - Recombination) (#/cm^3).
+        sol :  `OdeSolution`
+            (From Scipy) Found solution as `OdeSolution` instance
+        gen : float
+            Carrier concentration GENERATED (#/cm^3).
+        voltage : float
+             The calcualted voltage via Gauss's law (V)t
+        omega0 : float
+            Resonance frequency shift of the cantilever (Hz)
+        '''
         
         n_dens, sol, gen = self.calc_n_dot()
 
@@ -204,20 +225,33 @@ class IMSKPM:
         self.sol = sol
         self.gen = gen
         
-        self.voltage = calc_gauss_volt(self.n_dens)
+        self.voltage = calc_gauss_volt(self.n_dens, self.lift_height, self.thickness)
         self.omega0 = calc_omega0(self.voltage)
     
         return
     
     def plot(self):
-        
+        '''
+        Plots the calculated voltage
+        '''
+        tx = self.sol.t
         fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax.plot(self.sol.t, self.voltage, 'g')
+        ax.plot(tx*1e6, self.voltage, 'g')
         ax.set_ylabel('Voltage (V)')
-        ax.set_xlabel('Time (s)')
+        ax.set_xlabel(r'Time ($\mu$s)')
         vmean = self.voltage.mean() * np.ones(len(self.sol.t))
-        ax.plot(self.sol.t, vmean, 'r--')
+        ax.plot(tx, vmean, 'r--')
         ax.set_title(str(self.frequency) + ' Hz')
+        plt.tight_layout()
+        
+        fig, ax = plt.subplots(nrows=1,figsize=(8,8),facecolor='white')
+        ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
+        ax2 = ax.twinx()
+        ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
+        ax.set_ylabel('Carrier Density ($#/cm^3$)')
+        ax2.set_ylabel('Carrier Generated ($#/cm^3$)')
+        ax.set_xlabel(r'Time ($\mu$s)')
+        ax.set_title('Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
         plt.tight_layout()
             
         return
