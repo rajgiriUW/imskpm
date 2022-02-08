@@ -15,8 +15,23 @@ from odes import dn_dt_g
 from matplotlib import pyplot as plt
 import warnings
 
-class IMSKPM:
+class IMSKPMPoint:
+    '''
+    Generates a single IMSKPM sweep at a particular frequency
     
+    intensity : float
+        incident light intensity in W/cm^2 (0.1 = 100 mW/cm^2 = 1 Sun)
+    k1 : float
+        recombination, first-order (s^-1). The default is 1e6.
+    k2 : float
+        recombination, bimolecular (cm^3/s). The default is 1e-10.
+    k3 : float
+        recombination, Auger (cm^6/s). Default is 0
+    thickness : float, optional
+        user-specified layer thickness (m)
+    
+    
+    '''
     def __init__(self, 
                  intensity = 0.1,
                  k1 = 1e6,

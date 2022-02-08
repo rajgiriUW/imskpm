@@ -5,11 +5,11 @@ Created on Tue Feb  8 12:02:07 2022
 @author: Raj
 """
 
-from imskpm import IMSKPM
+from imskpmpoint import IMSKPMPoint
 import numpy as np
 import matplotlib.pyplot as plt
 
-class IMSKPMSweep(IMSKPM):
+class IMSKPMSweep(IMSKPMPoint):
     '''
     Generates a simulated IMSKPM sweep
     '''
@@ -58,15 +58,14 @@ class IMSKPMSweep(IMSKPM):
         return
     
     def plot(self):
-        
-        tx = self.sol.t
+        '''
+        Plots the average voltage vs frequency on semi-log plot
+        '''
         fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax.plot(tx*1e6, self.voltage, 'g')
+        ax.semilogx(self.frequency_list, self.voltage, 'bs', markersize=6)
         ax.set_ylabel('Voltage (V)')
-        ax.set_xlabel(r'Time ($\mu$s)')
-        vmean = self.voltage.mean() * np.ones(len(self.sol.t))
-        ax.plot(tx, vmean, 'r--')
-        ax.set_title(str(self.frequency) + ' Hz')
+        ax.set_xlabel(r'Frequency (Hz)')
+        ax.set_title('IMSKPM, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
         plt.tight_layout()
         
         return
