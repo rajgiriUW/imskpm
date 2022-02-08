@@ -2,7 +2,7 @@ import numpy as np
 import ffta
 from ffta.simulation import mechanical_drive_simple as cw
 
-from pulses import pulse_train, pulse, step
+from pulses import pulse_train, pulse
 from odes import dn_dt_g
 from scipy.integrate import solve_ivp
 
@@ -195,8 +195,6 @@ def calc_n_pulse(intensity,
     tx = np.arange(0, total_time, dt)
     
     pp = pulse(tx, start, width, intensity, rise, fall)
-    if square:
-        pp = step(tx, start, width, intensity)
     
     gen = gen_t(absorbance, pp, thickness) # electrons / cm^3 / s generated
     

@@ -35,7 +35,7 @@ def pulse(t, start, width, amp, rise, fall):
     '''
     
     # Perfect/ideal square pulses
-    if rise == 0:
+    if rise == 0 and fall == 0:
         
         return step(t, start, width, amp)
 
