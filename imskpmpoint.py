@@ -263,10 +263,10 @@ class IMSKPMPoint:
         ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
         ax2 = ax.twinx()
         ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
-        ax.set_ylabel('Carrier Density ($#/cm^3$)')
-        ax2.set_ylabel('Carrier Generated ($#/cm^3$)')
+        ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+        ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
         ax.set_xlabel(r'Time ($\mu$s)')
-        ax.set_title('Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
+        ax.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
         plt.tight_layout()
             
         return
