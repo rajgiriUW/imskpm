@@ -30,6 +30,52 @@ class IMSKPMPoint:
     thickness : float, optional
         user-specified layer thickness (m)
     
+    Usage
+    >> import imskpm
+    >> from imskpm.imskpmpoint import IMSKPMPoint
+    >> device = IMSKPMPoint()
+    >> frequency = 100 # 100 Hz
+    >> device.make_pulse(0,0,1/frequency,1/(4*frequency),1/(1/2*frequency))
+    >> device.simulate()
+    >> device.plot()
+    
+    * Add multiple pulses in a row to simulate a function generator
+    >> device.pulse_train(total_time=2e-3, max_cycles=20) # repeat pulse up to 2 ms in length
+    >> import matplotlib.pyplot as plt
+    >> plt.plot(device.tx, device.pulse, 'b') # visualize the pulse train
+    >> device.simulate()
+    >> device.plot()
+    
+    * Change recombination parameters
+    >> device.k1 = 1e5 # change recombination parameters
+    >> device.k2 = 1e-9
+    >> device.simulate()
+    >> device.plot()
+    
+    * Add a realistic rise and fall time to the laser
+    >> device.make_pulse(rise=1e-7,fall=1e-7,1/frequency,1/(4*frequency),1/(1/2*frequency))
+    >> device.pulse_train(total_time=2e-3, max_cycles=20)
+    >> device.simulate()
+    >> device.plot()
+    
+    * Change the simulation step-size
+    >> device.dt = 1e-5 #default = 1e-7 = 100 ns
+    
+    * Change the simulation evaluation size (which time steps to actually evaluate)
+    >> device.interpolation = 4 # every 4 time steps
+
+    Attributes
+    ----------
+    voltage : ndArray
+        The calcualted voltage via Gauss's law (V)
+    omega0 : ndArray
+        Resonance frequency shift of the cantilever (Hz)
+    n_dens : ndArray
+        Char density in the film due to ODE (Generation - Recombination) (#/cm^3).
+    sol :  `OdeSolution`
+        (From Scipy) Found solution as `OdeSolution` instance
+    gen : ndArray
+        Carrier concentration GENERATED (#/cm^3).
     
     '''
     def __init__(self, 
@@ -38,7 +84,10 @@ class IMSKPMPoint:
                  k2 = 1e-10,
                  k3 = 0,
                  thickness = 500e-7):
-    
+
+        # Simulation parameter
+        self.dt = 1e-7
+        
         # Active layer parameters
         self.kinetics(k1, k2, k3, absorbance=1)
         self.thickness = thickness
@@ -47,7 +96,6 @@ class IMSKPMPoint:
         # Excitation parameters
         self.intensity = intensity #Incident intensity (W/cm^2, 0.1 = 1 Sun)
         self.exc_source(intensity, wl=455e-9, NA=0.6)
-        self.use_pulse_train = False
         self.make_pulse()
 
         return
@@ -65,25 +113,39 @@ class IMSKPMPoint:
         
         return
     
-    def real_pulse(self, rise = 1e-4, fall = 1e-4):
-        '''Adds a rise/fall time to excitation pulse'''
-        self.square = False
-        self.rise = rise
-        self.fall = fall
-        
-        return
-    
-    def square_pulse(self):
-        '''Sets pulse parameters to be ideal'''
-        self.square = True
-        self.rise = 0
-        self.fall = 0
-        
-        return
-    
     def make_pulse(self, rise = 0, fall = 0, pulse_time = 10e-3, 
                    start_time = 2.5e-3, pulse_width = 5e-3):
-        '''Creates a single pulse'''
+        '''
+        Creates a single light pulse. The amplitude is defined by the attribute 
+        intensity. If you want to use a different incident intensity, then you need
+        to re-call this function after setting self.intensity.
+        
+        For a given frequency F, you can use these as reasonable values:
+            pulse_time = 1/F
+            pulse_width = 1/(2*F) (i.e. half the pulse_time)
+            start_time = 1/(4*F) (pulse starts about 25% in)
+        
+        >> device = IMSKPMPoint() # default intensity is 0.1 = 100 mW/cm^2 = 1 Sun
+        >> device.intensity = 1e-4
+        >> device.make_pulse(...) with your desired parameters
+        
+        You could also do:
+        >> device.intensity = 1e-4
+        >> device.pulse *= 10 * 1e-4  #factor of 10 because starts at 0.1 by default
+        
+        Parameters
+        ----------
+        rise : float
+            Rise time of the pulse (s). The default is 0.
+        fall : float
+            Fall time of the pulse (s). The default is 0.
+        pulse_time : TYPE, optional
+            Total time of the pulse (s). The default is 10e-3.
+        start_time : TYPE, optional
+            Start time (s) of the pulse. The default is 2.5e-3.
+        pulse_width : TYPE, optional
+            Width of the pulse (s). The default is 5e-3.
+        '''
         if rise == 0 and fall == 0:
             
             self.rise = 0
@@ -106,25 +168,12 @@ class IMSKPMPoint:
             warnings.warn('Pulse exceeds total_time, cropping width to match')
             self.pulse_width = self.pulse_time - self.start_time
         
-        dt, tx = self._dt_tx(self.pulse_width, self.pulse_time)
-        self.pulse = pulse(tx, self.start_time, self.pulse_width, 
+        self.tx = np.arange(0, self.pulse_time, self.dt)
+        self.pulse = pulse(self.tx, self.start_time, self.pulse_width, 
                            self.intensity, self.rise, self.fall)
         
-        self.dt = dt 
-        
         return
-    
-    @staticmethod
-    def _dt_tx(pulse_width, total_time):
-        if pulse_width < 1e-6:
-            dt = 1e-8
-        else:
-            dt = 1e-7 # save computation time
-        
-        tx = np.arange(0, total_time, dt)
-        
-        return dt, tx
-    
+     
     def pulse_train(self, total_time = None, max_cycles = None):
         '''
         Creates a sequence of pulses by repeating self.pulse
@@ -146,14 +195,19 @@ class IMSKPMPoint:
         
         if total_time is None and max_cycles is None:
             raise AttributeError('Must specify either total_time or max_cycles')
-        elif total_time is not None and max_cycles is not None:
-           warnings.warn('Specifying both defaults to using total_time')
         
         if total_time is None:
             self.pulse = np.tile(self.pulse, max_cycles)
         else:
-            cycles = total_time // self.pulse_time
-            self.pulse = np.tile(self.pulse, cycles)
+            cycles = int(total_time // self.pulse_time)
+            
+            if max_cycles is not None:
+                cycles = min(max_cycles, cycles)
+            
+            if cycles > 0:
+                self.pulse = np.tile(self.pulse, cycles)
+        
+        self.tx = np.arange(0, len(self.pulse)*self.dt, self.dt)
         
         return
     
@@ -179,7 +233,7 @@ class IMSKPMPoint:
     def calc_n_dot(self):
         '''
         Calculating the integrated charge density given an input pulse
-        
+       
         Returns
         -------
         n_dens : float
@@ -188,7 +242,6 @@ class IMSKPMPoint:
             (From Scipy) Found solution as `OdeSolution` instance
         gen : float
             Carrier concentration GENERATED (#/cm^3).
-    
         '''
         
         gen = gen_t(self.absorbance, self.pulse, self.thickness) # electrons / cm^3 / s generated
@@ -200,15 +253,13 @@ class IMSKPMPoint:
         k2 = self.k2 / scale**3 #(from cm^3/s)
         k3 = self.k3 / scale**6 #(from cm^6/s)
         
-        #dt, tx = self._dt_tx(self.pulse_width, self.pulse_time)
-        tx = np.arange(0, self.dt*len(self.pulse), self.dt)
-
+        tx = self.tx[::self.interpolation]
 
         sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                         args = (k1, k2, k3, gen, tx[1]-tx[0]))
         
         if not any(np.where(sol.y.flatten() > 0)[0]):                
-    
+            print('error in solve, changing max_step_size')
             sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                             args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
         
@@ -219,9 +270,13 @@ class IMSKPMPoint:
         
         return n_dens, sol, gen
     
-    def simulate(self):
+    def simulate(self, interpolation=1):
         '''
         Simulates the single pulse
+        
+        interpolation : int, optional
+            Determines subsampling of the time values (to speed up integration)
+            Default is 1
         
         Attributes
         ----------
@@ -237,6 +292,7 @@ class IMSKPMPoint:
             Resonance frequency shift of the cantilever (Hz)
         '''
         
+        self.interpolation = int(interpolation)
         n_dens, sol, gen = self.calc_n_dot()
 
         self.n_dens = n_dens
@@ -248,7 +304,7 @@ class IMSKPMPoint:
     
         return
     
-    def plot(self):
+    def plot(self, semilog=False):
         '''
         Plots the calculated voltage
         '''
@@ -258,13 +314,15 @@ class IMSKPMPoint:
         ax.set_ylabel('Voltage (V)')
         ax.set_xlabel(r'Time ($\mu$s)')
         vmean = self.voltage.mean() * np.ones(len(self.sol.t))
-        ax.plot(tx, vmean, 'r--')
-        ax.set_title(str(self.frequency) + ' Hz')
-        ax.legend()
+        ax.plot(tx*1e6, vmean, 'r--', label='Voltage')
+        ax.set_title('Voltage at ' + str(self.frequency) + ' Hz')
         plt.tight_layout()
         
         fig, ax = plt.subplots(nrows=1,figsize=(8,8),facecolor='white')
-        ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
+        if semilog:
+            ax.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
+        else:
+            ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
         ax2 = ax.twinx()
         ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
         ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
