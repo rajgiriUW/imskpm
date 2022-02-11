@@ -4,7 +4,7 @@ Contains defining ODE equations and utilites for simulations
 
 import numpy as np
 from scipy.integrate import solve_ivp
-from odes import dn_dt_g
+from .odes import dn_dt_g
 
 def pulse(t, start, width, amp, rise, fall):
     '''

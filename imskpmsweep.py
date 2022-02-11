@@ -5,7 +5,7 @@ Created on Tue Feb  8 12:02:07 2022
 @author: Raj
 """
 
-from imskpmpoint import IMSKPMPoint
+from .imskpmpoint import IMSKPMPoint
 import numpy as np
 import matplotlib.pyplot as plt
 

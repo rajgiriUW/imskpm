@@ -7,10 +7,10 @@ Created on Fri Sep  4 15:26:28 2020
 
 import numpy as np
 from scipy.integrate import solve_ivp
-from calc_utils import gen_t
-from calc_utils import calc_gauss_volt, calc_omega0
-from pulses import pulse
-from odes import dn_dt_g
+from .calc_utils import gen_t
+from .calc_utils import calc_gauss_volt, calc_omega0
+from .pulses import pulse
+from .odes import dn_dt_g
 
 from matplotlib import pyplot as plt
 import warnings
@@ -109,7 +109,9 @@ class IMSKPMPoint:
         dt, tx = self._dt_tx(self.pulse_width, self.pulse_time)
         self.pulse = pulse(tx, self.start_time, self.pulse_width, 
                            self.intensity, self.rise, self.fall)
-            
+        
+        self.dt = dt 
+        
         return
     
     @staticmethod
@@ -198,7 +200,8 @@ class IMSKPMPoint:
         k2 = self.k2 / scale**3 #(from cm^3/s)
         k3 = self.k3 / scale**6 #(from cm^6/s)
         
-        dt, tx = self._dt_tx(self.pulse_width, self.pulse_time)
+        #dt, tx = self._dt_tx(self.pulse_width, self.pulse_time)
+        tx = np.arange(0, self.dt*len(self.pulse), self.dt)
 
 
         sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
@@ -257,6 +260,7 @@ class IMSKPMPoint:
         vmean = self.voltage.mean() * np.ones(len(self.sol.t))
         ax.plot(tx, vmean, 'r--')
         ax.set_title(str(self.frequency) + ' Hz')
+        ax.legend()
         plt.tight_layout()
         
         fig, ax = plt.subplots(nrows=1,figsize=(8,8),facecolor='white')
@@ -267,6 +271,7 @@ class IMSKPMPoint:
         ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
         ax.set_xlabel(r'Time ($\mu$s)')
         ax.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
+        ax.legend()
         plt.tight_layout()
             
         return

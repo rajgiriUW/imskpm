@@ -2,8 +2,8 @@ import numpy as np
 import ffta
 from ffta.simulation import mechanical_drive_simple as cw
 
-from pulses import pulse_train, pulse
-from odes import dn_dt_g
+from .pulses import pulse_train, pulse
+from .odes import dn_dt_g
 from scipy.integrate import solve_ivp
 
 def gen_t(absorb, pulse, thickness):
