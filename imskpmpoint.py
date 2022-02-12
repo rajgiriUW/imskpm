@@ -209,6 +209,9 @@ class IMSKPMPoint:
         
         self.tx = np.arange(0, len(self.pulse)*self.dt, self.dt)
         
+        if len(self.tx) > len(self.pulse):
+            self.tx = self.tx[:len(self.pulse)]
+        
         return
     
     def kinetics(self, k1, k2, k3, absorbance=None):
@@ -257,9 +260,10 @@ class IMSKPMPoint:
 
         sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                         args = (k1, k2, k3, gen, tx[1]-tx[0]))
-        
+        self._error = False
         if not any(np.where(sol.y.flatten() > 0)[0]):                
             print('error in solve, changing max_step_size')
+            self._error = True
             sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                             args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
         

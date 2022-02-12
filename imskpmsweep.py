@@ -12,6 +12,32 @@ import matplotlib.pyplot as plt
 class IMSKPMSweep(IMSKPMPoint):
     '''
     Generates a simulated IMSKPM sweep
+    
+    Usage
+    
+    >> import imskpm
+    >> from imskpm.imskpmsweep import IMSKPMSweep
+    >> devicesweep = IMSKPMSweep()
+    >> devicesweep.simulate()
+    
+    * Change the frequencies simulated
+    >> devicesweep.frequencies([5,10,20...]) 
+    
+    * See the outputs during the simulations
+    >> devicesweep.simulate(verbose=True)
+
+    * Plot the result
+    >> devicesweep.plot()
+    
+    Attributes
+    ----------
+    See IMSKPMPoint for inherited attributes
+    cpd_means : list
+        The Average CPD at each frequency calculated using Gauss's law
+    omega0_means : list
+        The average frequency shift at each frequency
+    n_dens_means : list
+        The average carrier density at each frequency 
     '''
     def __init__(self, 
                  intensity = 0.1,
@@ -26,22 +52,33 @@ class IMSKPMSweep(IMSKPMPoint):
         return
     
     def frequencies(self, arr = None):
-        
+        '''
+        arr : ndArray, optional
+            The list of frequencies to use
+        '''
         if arr is None:
             #self.frequency_list = np.array([4e-8, 1e-7, 4e-7, 1e-06, 4e-6, 1e-05, 4e-5, 1e-04, 4e-4, 1e-03, 4e-3])
-            self.frequency_list = np.array([10, 20, 40, 70, 100, 200, 400, 700, 1000,
+            self.frequency_list = np.array([100, 200, 400, 700, 1000,
                                             2000, 4000, 7000, 1e4, 2e4, 4e4, 7e4, 1e5, 2e5, 4e5, 7e5,
-                                            1e6, 2e6, 4e6, 7e6, 1e7, 2e7, 4e7, 7e7])
-        elif isinstance(arr, np.ndarray):
-            self.frequency_list = arr
+                                            1e6, 2e6, 4e6, 7e6, 1.5e7, 2e7, 4.8e7, 8e7])
+        elif isinstance(arr, np.ndarray) or isinstance(arr, list):
+            self.frequency_list = np.array(arr)
         else:
             raise ValueError('Must supply a valid NumPy array')
             
         return
     
-    def simulate_sweep(self, verbose=False):
+    def simulate_sweep(self, verbose=False, total_time = 1.6, max_cycles = 20):
         '''
         Simulates an IMSKPM sweep over many frequencies
+        
+        totaL_time : float
+            pulse time at each frequency, 1.6 s = Asylum IMSKPM time
+        max_cycles : int
+            max cycles per frequency step (number of pulses)
+        verbose : bool, optional
+            Console display of values at each frequency step
+        
         '''
         self.cpd_means = []
         self.omega0_means = []
@@ -50,20 +87,33 @@ class IMSKPMSweep(IMSKPMPoint):
         for f in self.frequency_list:
             if verbose:
                 print('Frequency: ', f)
-            if f > 1e6:
-                self.dt = 1e-8
-            if f < 100:
-                self.interpolation = 4
-            else:
-                self.interpolation = 1
+            
+            # Step size
+            self.dt = 10**(-(np.log10(f)+2)) #100 points per
+            self.dt = min(self.dt, 1e-5)
+                
+            # Create generation pulse sequence
             self.pulse_time = 1/f
             self.pulse_width = 1/(2*f)
             self.start_time = 1/(4*f)
             self.make_pulse(self.rise, self.fall, self.pulse_time, 
                             self.start_time, self.pulse_width)
-            self.pulse_train(total_time=2, max_cycles = 20)
+            self.pulse_train(total_time, max_cycles)
             
             self.simulate()
+            
+            # Need better step size
+            if self._error:
+                print('Rerun')
+                self.dt /= 10
+                self.pulse_time = 1/f
+                self.pulse_width = 1/(2*f)
+                self.start_time = 1/(4*f)
+                self.make_pulse(self.rise, self.fall, self.pulse_time, 
+                                self.start_time, self.pulse_width)
+                self.pulse_train(total_time, max_cycles)
+            
+            # Collect results
             self.cpd_means.append(self.voltage.mean())
             self.omega0_means.append(self.omega0.mean())
             self.n_dens_means.append(self.n_dens.mean())
@@ -87,7 +137,7 @@ class IMSKPMSweep(IMSKPMPoint):
         plt.tight_layout()
         
         fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax.semilogx(self.frequency_list, self.n_dens_means, 'rt', markersize=6)
+        ax.semilogx(self.frequency_list, self.n_dens_means, 'r^', markersize=6)
         ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
         ax.set_xlabel(r'Frequency (Hz)')
         ax.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
