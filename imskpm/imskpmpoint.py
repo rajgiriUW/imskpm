@@ -71,7 +71,7 @@ class IMSKPMPoint:
     omega0 : ndArray
         Resonance frequency shift of the cantilever (Hz)
     n_dens : ndArray
-        Char density in the film due to ODE (Generation - Recombination) (#/cm^3).
+        Charge density in the film due to ODE (Generation - Recombination) (#/cm^3).
     sol :  `OdeSolution`
         (From Scipy) Found solution as `OdeSolution` instance
     gen : ndArray
