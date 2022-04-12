@@ -53,7 +53,7 @@ class IMSKPMPoint:
     >> device.plot()
     
     * Add a realistic rise and fall time to the laser
-    >> device.make_pulse(rise=1e-7,fall=1e-7,1/frequency,1/(4*frequency),1/(1/2*frequency))
+    >> device.make_pulse(rise=1e-7,fall=1e-7,1/frequency,1/(4*frequency),1/(2*frequency))
     >> device.pulse_train(total_time=2e-3, max_cycles=20)
     >> device.simulate()
     >> device.plot()
@@ -85,7 +85,7 @@ class IMSKPMPoint:
                  k3 = 0,
                  thickness = 500e-7):
 
-        # Simulation parameter
+        # Simulation parameters
         self.dt = 1e-7
         
         # Active layer parameters
@@ -216,6 +216,10 @@ class IMSKPMPoint:
     
     def kinetics(self, k1, k2, k3, absorbance=None):
         '''
+        Set the k1, k2, k3, and absorbance via function call rather than explicitly
+        
+        Parameters
+        ----------
         k1 : float
             recombination, first-order (s^-1). The default is 1e6.
         k2 : float
@@ -233,7 +237,7 @@ class IMSKPMPoint:
         
         return
 
-    def calc_n_dot(self):
+    def calc_n_dot(self, func=dn_dt_g):
         '''
         Calculating the integrated charge density given an input pulse
        
@@ -258,13 +262,16 @@ class IMSKPMPoint:
         
         tx = self.tx[::self.interpolation]
 
-        sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+        sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                         args = (k1, k2, k3, gen, tx[1]-tx[0]))
+        
         self._error = False
-        if not any(np.where(sol.y.flatten() > 0)[0]):                
+        
+        if not any(np.where(sol.y.flatten() > 0)[0]):  
+              
             print('error in solve, changing max_step_size')
             self._error = True
-            sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+            sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                             args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
         
         n_dens = sol.y.flatten()
@@ -336,4 +343,4 @@ class IMSKPMPoint:
         ax.legend()
         plt.tight_layout()
             
-        return
+        return fig, ax

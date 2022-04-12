@@ -10,7 +10,7 @@ import numpy as np
 # ODEs
 def dn_dt(t, n, k1, k2, k3=0):
     '''
-    Recombination equation, assuming no auger
+    Recombination equation, assuming no Auger
     
     Parameters
     ----------
@@ -37,7 +37,7 @@ def dn_dt(t, n, k1, k2, k3=0):
 
 def dn_dt_g(t, n, k1, k2, k3, pulse, dt):
     '''
-    Recombination+Generation equation, assuming no auger
+    Recombination+Generation equation, assuming no Auger
     
     Calculates the generation at a particular time given a light pulse array
     

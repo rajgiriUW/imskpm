@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class IMSKPMSweep(IMSKPMPoint):
     '''
-    Generates a simulated IMSKPM sweep
+    Generates a simulated IMSKPM sweep across a range of frequencies
     
     Usage
     
@@ -24,7 +24,7 @@ class IMSKPMSweep(IMSKPMPoint):
     >> devicesweep.frequencies([5,10,20...]) 
     
     * See the outputs during the simulations
-    >> devicesweep.simulate(verbose=True)
+    >> devicesweep.simulate_sweep(verbose=True)
 
     * Plot the result
     >> devicesweep.plot()
