@@ -8,6 +8,7 @@ Created on Tue Feb  8 12:02:07 2022
 from .imskpmpoint import IMSKPMPoint
 import numpy as np
 import matplotlib.pyplot as plt
+from .odes import dn_dt_g
 
 class IMSKPMSweep(IMSKPMPoint):
     '''
@@ -18,7 +19,7 @@ class IMSKPMSweep(IMSKPMPoint):
     >> import imskpm
     >> from imskpm.imskpmsweep import IMSKPMSweep
     >> devicesweep = IMSKPMSweep()
-    >> devicesweep.simulate()
+    >> devicesweep.simulate_sweep()
     
     * Change the frequencies simulated
     >> devicesweep.frequencies([5,10,20...]) 
@@ -68,9 +69,12 @@ class IMSKPMSweep(IMSKPMPoint):
             
         return
     
-    def simulate_sweep(self, verbose=False, total_time = 1.6, max_cycles = 20):
+    def simulate_sweep(self, verbose=False, 
+                       total_time = 1.6, max_cycles = 20):
         '''
         Simulates an IMSKPM sweep over many frequencies
+        
+        self.func is the ODE equation used. Change self. func to any valid function
         
         totaL_time : float
             pulse time at each frequency, 1.6 s = Asylum IMSKPM time

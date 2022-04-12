@@ -87,6 +87,7 @@ class IMSKPMPoint:
 
         # Simulation parameters
         self.dt = 1e-7
+        self.func = dn_dt_g # simulation ODE function
         
         # Active layer parameters
         self.kinetics(k1, k2, k3, absorbance=1)
@@ -237,10 +238,12 @@ class IMSKPMPoint:
         
         return
 
-    def calc_n_dot(self, func=dn_dt_g):
+    def calc_n_dot(self):
         '''
         Calculating the integrated charge density given an input pulse
-       
+        
+        Simulation is processed with self.func function. See odes.py for more detail
+            
         Returns
         -------
         n_dens : float
@@ -261,7 +264,8 @@ class IMSKPMPoint:
         k3 = self.k3 / scale**6 #(from cm^6/s)
         
         tx = self.tx[::self.interpolation]
-
+        func = self.func
+        
         sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                         args = (k1, k2, k3, gen, tx[1]-tx[0]))
         
@@ -269,10 +273,17 @@ class IMSKPMPoint:
         
         if not any(np.where(sol.y.flatten() > 0)[0]):  
               
-            print('error in solve, changing max_step_size')
+            #print('error in solve, changing max_step_size')
             self._error = True
             sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                             args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
+
+            if not any(np.where(sol.y.flatten() > 0)[0]):  
+                  
+                #print('Still error in solve, changing max_step_size')
+                self._error = True
+                sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+                                args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-8)
         
         n_dens = sol.y.flatten()
         
@@ -329,7 +340,7 @@ class IMSKPMPoint:
         ax.set_title('Voltage at ' + str(self.frequency) + ' Hz')
         plt.tight_layout()
         
-        fig, ax = plt.subplots(nrows=1,figsize=(8,8),facecolor='white')
+        fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
         if semilog:
             ax.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
         else:
