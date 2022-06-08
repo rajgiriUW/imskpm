@@ -326,7 +326,7 @@ class IMSKPMPoint:
     
         return
     
-    def plot(self, semilog=False):
+    def plot(self, semilog=False, charge_only=True):
         '''
         Plots the calculated voltage
         '''
@@ -345,10 +345,12 @@ class IMSKPMPoint:
             ax.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
         else:
             ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
-        ax2 = ax.twinx()
-        ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
-        ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
-        ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
+        
+        if not charge_only:
+            ax2 = ax.twinx()
+            ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
+            ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+            ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
         ax.set_xlabel(r'Time ($\mu$s)')
         ax.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
         ax.legend()
