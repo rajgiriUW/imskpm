@@ -141,11 +141,11 @@ class IMSKPMSweep(IMSKPMPoint):
         ax.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
         plt.tight_layout()
         
-        fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax.semilogx(self.frequency_list, self.n_dens_means, 'r^', markersize=6)
-        ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
-        ax.set_xlabel(r'Frequency (Hz)')
-        ax.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
+        fig, ax2 = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+        ax2.semilogx(self.frequency_list, self.n_dens_means, 'r^', markersize=6)
+        ax2.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+        ax2.set_xlabel(r'Frequency (Hz)')
+        ax2.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
         plt.tight_layout()
         
         return ax
