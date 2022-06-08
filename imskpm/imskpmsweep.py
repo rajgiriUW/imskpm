@@ -116,7 +116,8 @@ class IMSKPMSweep(IMSKPMPoint):
                 self.make_pulse(self.rise, self.fall, self.pulse_time, 
                                 self.start_time, self.pulse_width)
                 self.pulse_train(total_time, max_cycles)
-            
+                self.simulate()
+                
             # Collect results
             self.cpd_means.append(self.voltage.mean())
             self.omega0_means.append(self.omega0.mean())
