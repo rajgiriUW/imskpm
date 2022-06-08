@@ -266,7 +266,7 @@ class IMSKPMPoint:
         tx = self.tx[::self.interpolation]
         func = self.func
         
-        sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+        sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                         args = (k1, k2, k3, gen, tx[1]-tx[0]))
         
         self._error = False
@@ -345,11 +345,11 @@ class IMSKPMPoint:
             ax.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
         else:
             ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
-        
+        ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
         if not charge_only:
             ax2 = ax.twinx()
             ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
-            ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+         
             ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
         ax.set_xlabel(r'Time ($\mu$s)')
         ax.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
