@@ -8,33 +8,6 @@ Created on Wed Feb  2 21:06:04 2022
 import numpy as np
 
 # ODEs
-def dn_dt(t, n, k1, k2, k3=0):
-    '''
-    Recombination equation, assuming no Auger
-    
-    Parameters
-    ----------
-    t : float
-        Time (s)
-    n : float
-        carrier density (cm^-3).
-    k1 : float
-        recombination, first-order (s^-1)
-    k2 : float
-        recombination, bimolecular (cm^3/s)
-    k3 : float
-        recombination, Auger (cm^6/s). Default is 0
-
-    Returns
-    -------
-    n_dot : float
-        differential carrier concentration w.r.t. time.
-
-    '''
-    n_dot = -k1 * n - k2 * n**2 - k3 * n**3
-    
-    return n_dot
-
 def dn_dt_g(t, n, k1, k2, k3, pulse, dt):
     '''
     Recombination+Generation equation, assuming no Auger
@@ -67,4 +40,31 @@ def dn_dt_g(t, n, k1, k2, k3, pulse, dt):
     
     n_dot = g - k1 * n - k2 * n**2 - k3 * n**3
 
+    return n_dot
+
+def dn_dt(t, n, k1, k2, k3=0):
+    '''
+    Recombination equation, assuming no Auger
+    
+    Parameters
+    ----------
+    t : float
+        Time (s)
+    n : float
+        carrier density (cm^-3).
+    k1 : float
+        recombination, first-order (s^-1)
+    k2 : float
+        recombination, bimolecular (cm^3/s)
+    k3 : float
+        recombination, Auger (cm^6/s). Default is 0
+
+    Returns
+    -------
+    n_dot : float
+        differential carrier concentration w.r.t. time.
+
+    '''
+    n_dot = -k1 * n - k2 * n**2 - k3 * n**3
+    
     return n_dot

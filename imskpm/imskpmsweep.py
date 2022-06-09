@@ -9,6 +9,8 @@ from .imskpmpoint import IMSKPMPoint
 import numpy as np
 import matplotlib.pyplot as plt
 from .odes import dn_dt_g
+from .fitting import cost_fit, expf_1tau, expf_2tau
+from scipy.optimize import curve_fit as cf
 
 class IMSKPMSweep(IMSKPMPoint):
     '''
@@ -29,6 +31,13 @@ class IMSKPMSweep(IMSKPMPoint):
 
     * Plot the result
     >> devicesweep.plot()
+    
+    * Change simulation parameters
+    >> devicesweep.kinetics(k1 = 1.2e6, k2=1e-10,k3=0)
+    
+    * Fit the result with 1 tau (Takihara) or 2 tau (Grevin)
+    >> devicesweep.fit_1tau()
+    >> devicesweep.fit_2tau()
     
     Attributes
     ----------
@@ -65,7 +74,7 @@ class IMSKPMSweep(IMSKPMPoint):
         elif isinstance(arr, np.ndarray) or isinstance(arr, list):
             self.frequency_list = np.array(arr)
         else:
-            raise ValueError('Must supply a valid NumPy array')
+            raise ValueError('Must supply a valid array (list or ndarray')
             
         return
     
@@ -74,7 +83,7 @@ class IMSKPMSweep(IMSKPMPoint):
         '''
         Simulates an IMSKPM sweep over many frequencies
         
-        self.func is the ODE equation used. Change self. func to any valid function
+        self.func is the ODE equation used. Change self.func to any valid function
         
         totaL_time : float
             pulse time at each frequency, 1.6 s = Asylum IMSKPM time
@@ -129,6 +138,47 @@ class IMSKPMSweep(IMSKPMPoint):
                 print('Carrier density mean = ', self.n_dens.mean())
             
         return
+    
+    def fit(self, cfit = True, crop=-1):
+        '''
+        Fits the resulting IM-SKPM curve with the specified function
+        
+        cfit : use cost function minimization instead of curve_fit
+        
+        crop : index to use (-1 means use all frequency data information)
+        '''
+        _cp = np.array(self.cpd_means)
+        
+        if cfit:
+            p0 = (0.5 * (_cp.max() - _cp.min()) + _cp.min(), (_cp.max() - _cp.min()), 1/self.k1)
+            popt = cost_fit(self.frequency_list, self.cpd_means, init=p0 )
+            
+            return popt
+        
+        else:
+            p0 = (0.5 * (_cp.max() - _cp.min()) + _cp.min(), 
+                  (_cp.max() - _cp.min()), 
+                  1/self.k1)
+            popt, _ = cf(expf_1tau, self.frequency_list[:crop],
+                         self.cpd_means[:crop], p0=p0, 
+                         bounds = ((-np.inf,-np.inf, 1e-10), (np.inf, np.inf, 1e-2)))
+        
+            return popt
+    
+    def fit_2tau(self, crop=-1):
+        '''
+        Fits using f, y0, a, taub, taud with a 2*tau approach
+        '''
+        _cp = np.array(self.cpd_means)
+        p0 = (0.5 * (_cp.max() - _cp.min()) + _cp.min(), 
+              (_cp.max() - _cp.min()), 
+              1/self.k1,
+              1/self.k1)
+        popt, _ = cf(expf_2tau, self.frequency_list[:crop],
+                     self.cpd_means[:crop], p0=p0, 
+                     bounds = ((-np.inf,-np.inf, 1e-9, 1e-9), (np.inf, np.inf, 1e-4, 1e-4)))
+    
+        return popt
     
     def plot(self):
         '''

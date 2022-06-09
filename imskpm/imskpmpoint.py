@@ -351,9 +351,10 @@ class IMSKPMPoint:
             ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
          
             ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
+            ax.legend()
         ax.set_xlabel(r'Time ($\mu$s)')
         ax.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
-        ax.legend()
+        
         plt.tight_layout()
             
         return fig, ax
