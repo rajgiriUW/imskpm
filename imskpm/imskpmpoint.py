@@ -67,7 +67,7 @@ class IMSKPMPoint:
     Attributes
     ----------
     voltage : ndArray
-        The calcualted voltage via Gauss's law (V)
+        The calculated voltage via Gauss's law (V)
     omega0 : ndArray
         Resonance frequency shift of the cantilever (Hz)
     n_dens : ndArray
@@ -243,6 +243,9 @@ class IMSKPMPoint:
         Calculating the integrated charge density given an input pulse
         
         Simulation is processed with self.func function. See odes.py for more detail
+        
+        To use a different function, user must supply self.args and self.init
+            (the arguments for the function and initial values for the function)
             
         Returns
         -------
@@ -266,25 +269,27 @@ class IMSKPMPoint:
         tx = self.tx[::self.interpolation]
         func = self.func
         
-        sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                        args = (k1, k2, k3, gen, tx[1]-tx[0]))
+        if hasattr(self, 'args'):
+            sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+                            args = self.args)
+        else:
+            sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+                            args = (k1, k2, k3, gen, tx[1]-tx[0]))
         
         self._error = False
         
+        # Decrease default step size if solution fails
         if not any(np.where(sol.y.flatten() > 0)[0]):  
               
             #print('error in solve, changing max_step_size')
             self._error = True
-            sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                            args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
-
-            if not any(np.where(sol.y.flatten() > 0)[0]):  
-                  
-                #print('Still error in solve, changing max_step_size')
-                self._error = True
+            if hasattr(self, 'args'):
                 sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                                args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-8)
-        
+                            args = self.args, max_step=1e-6)
+            else:
+                sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
+                                args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
+            
         n_dens = sol.y.flatten()
         
         gen = gen / scale**3
@@ -337,7 +342,7 @@ class IMSKPMPoint:
         ax.set_xlabel(r'Time ($\mu$s)')
         vmean = self.voltage.mean() * np.ones(len(self.sol.t))
         ax.plot(tx*1e6, vmean, 'r--', label='Voltage')
-        ax.set_title('Voltage at ' + str(self.frequency) + ' Hz')
+        ax.set_title('Voltage at ' + str(np.round(self.frequency,2)) + ' Hz')
         plt.tight_layout()
         
         fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')

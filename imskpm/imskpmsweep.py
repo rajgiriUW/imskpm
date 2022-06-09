@@ -163,7 +163,9 @@ class IMSKPMSweep(IMSKPMPoint):
                          self.cpd_means[:crop], p0=p0, 
                          bounds = ((-np.inf,-np.inf, 1e-10), (np.inf, np.inf, 1e-2)))
         
-            return popt
+        self.popt = popt
+        
+        return popt
     
     def fit_2tau(self, crop=-1):
         '''
@@ -178,17 +180,28 @@ class IMSKPMSweep(IMSKPMPoint):
                      self.cpd_means[:crop], p0=p0, 
                      bounds = ((-np.inf,-np.inf, 1e-9, 1e-9), (np.inf, np.inf, 1e-4, 1e-4)))
     
+        self.popt = popt
+        self._fitting_xaxis = self.frequency_list[:crop]
+        
         return popt
     
     def plot(self):
         '''
         Plots the average voltage vs frequency on semi-log plot
         '''
+        
+        
         fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
         ax.semilogx(self.frequency_list, self.cpd_means, 'bs', markersize=6)
         ax.set_ylabel('Voltage (V)')
         ax.set_xlabel(r'Frequency (Hz)')
         ax.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
+        
+        if hasattr(self, 'popt'): #has a fit
+            ax.semilogx(np.sort(self._fitting_xaxis), 
+                        (expf_2tau(np.sort(self._fitting_xaxis), *self.popt)), 
+                        '--', color='k', label=np.round(self.popt[2:]*1e9,2))
+        
         plt.tight_layout()
         
         fig, ax2 = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
