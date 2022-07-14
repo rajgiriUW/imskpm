@@ -336,30 +336,30 @@ class IMSKPMPoint:
         Plots the calculated voltage
         '''
         tx = self.sol.t
-        fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax.plot(tx*1e6, self.voltage, 'g')
-        ax.set_ylabel('Voltage (V)')
-        ax.set_xlabel(r'Time ($\mu$s)')
+        fig_voltage, ax_voltage = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+        ax_voltage.plot(tx*1e6, self.voltage, 'g')
+        ax_voltage.set_ylabel('Voltage (V)')
+        ax_voltage.set_xlabel(r'Time ($\mu$s)')
         vmean = self.voltage.mean() * np.ones(len(self.sol.t))
-        ax.plot(tx*1e6, vmean, 'r--', label='Voltage')
-        ax.set_title('Voltage at ' + str(np.round(self.frequency,2)) + ' Hz')
+        ax_voltage.plot(tx*1e6, vmean, 'r--', label='Voltage')
+        ax_voltage.set_title('Voltage at ' + str(np.round(self.frequency,2)) + ' Hz')
         plt.tight_layout()
-        
-        fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+
+        fig_dndt, ax_dndt = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
         if semilog:
-            ax.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
+            ax_dndt.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
         else:
-            ax.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
-        ax.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+            ax_dndt.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
+        ax_dndt.set_ylabel(r'Carrier Density ($cm^{-3}$)')
         if not charge_only:
-            ax2 = ax.twinx()
+            ax2 = ax_dndt.twinx()
             ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
-         
+
             ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
-            ax.legend()
-        ax.set_xlabel(r'Time ($\mu$s)')
-        ax.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
-        
+            ax_dndt.legend()
+        ax_dndt.set_xlabel(r'Time ($\mu$s)')
+        ax_dndt.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
+
         plt.tight_layout()
-            
-        return fig, ax
+
+        return fig_voltage, fig_dndt, ax_voltage, ax_dndt
