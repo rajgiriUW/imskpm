@@ -4,10 +4,6 @@ import streamlit as st
 from matplotlib import pyplot as plt
 import mpld3
 
-from imskpm.imskpmpoint import IMSKPMPoint
-from imskpm.imskpmsweep import IMSKPMSweep
-
-from imskpm.fitting import cost_fit, expf_1tau, expf_2tau
 
 ##----------------------------------------------
 ## Heading and introduction
