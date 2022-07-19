@@ -1,0 +1,9 @@
+ffta==0.3.5.0
+lmfit==1.0.3
+matplotlib==3.5.1
+mpld3==0.5.8
+numpy==1.22.4
+pandas==1.4.2
+scipy==1.7.3
+setuptools==61.2.0
+streamlit==1.11.0
