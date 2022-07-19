@@ -165,15 +165,15 @@ with st.form("Sweep"):
     col1, col2, col3 = st.columns(3, gap="medium")
     with col1:
         i1 = st.number_input('1', min_value=0e0, max_value=5e6, value=1e3, format='%e')
-        i4 = st.number_input('4', min_value=0e0, max_value=5e6, value=5e4, format='%e')
-        i7 = st.number_input('7', min_value=0e0, max_value=5e6, value=1e6, format='%e')
+        i4 = st.number_input('2', min_value=0e0, max_value=5e6, value=5e4, format='%e')
+        i7 = st.number_input('3', min_value=0e0, max_value=5e6, value=1e6, format='%e')
     with col2:
-        i2 = st.number_input('2', min_value=0e0, max_value=5e6, value=5e3, format='%e')
+        i2 = st.number_input('4', min_value=0e0, max_value=5e6, value=5e3, format='%e')
         i5 = st.number_input('5', min_value=0e0, max_value=5e6, value=1e5, format='%e')
-        i8 = st.number_input('8', min_value=0e0, max_value=5e6, value=5e5, format='%e')
+        i8 = st.number_input('6', min_value=0e0, max_value=5e6, value=5e5, format='%e')
     with col3:
-        i3 = st.number_input('3', min_value=0e0, max_value=5e6, value=1e4, format='%e')
-        i6 = st.number_input('6', min_value=0e0, max_value=5e6, value=5e5, format='%e')
+        i3 = st.number_input('7', min_value=0e0, max_value=5e6, value=1e4, format='%e')
+        i6 = st.number_input('8', min_value=0e0, max_value=5e6, value=5e5, format='%e')
         i9 = st.number_input('9', min_value=0e0, max_value=5e6, value=1e6, format='%e')
 
     st.markdown("""---""")
@@ -190,19 +190,15 @@ with st.form("Sweep"):
             devicesweep.intensity=intensity_input
 
             # Let's update the default list (which is from 100 Hz to 80 MHz) to save time
-            devicesweep.frequency_list = np.array([i1, i4, i7, i2, i5, i8, i3, i6, i9])
+            devicesweep.frequency_list = np.array([i1, i2, i3, i4, i5, i6, i7, i8, i9])
             devicesweep.frequency_list.sort()
 
             devicesweep.simulate_sweep(verbose=False) #verbose displays outputs to the command window for feedback
 
-            fig_voltage, ax_voltage = plt.subplots()
-            fig_dndt, ax_dndt = plt.subplots()
-
-            fig_voltage, fig_dndt, ax_voltage, ax_dndt = devicesweep.plot()
+            fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot()
 
             popt = devicesweep.fit(cfit=False)
             ax_voltage.plot(devicesweep.frequency_list, expf_1tau(devicesweep.frequency_list, *popt), 'r--')
-            #             ax_dndt.plot(devicesweep.frequency_list, expf_1tau(devicesweep.frequency_list, *popt), 'b--')
 
             st.write('$Y_0: $', popt[0], '$A: $', popt[1], '$\\tau: $', popt[2])
             st.pyplot(fig_voltage)
