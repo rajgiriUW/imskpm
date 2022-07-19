@@ -64,7 +64,7 @@ k3_input = st.sidebar.number_input('The third order recombination rate, Auger re
 
 # Determine frequency
 st.sidebar.markdown("""---""")
-freq_input = st.sidebar.number_input('Frequency', min_value=0e1, max_value=5e5, value=1e4)
+freq_input = st.sidebar.number_input('Frequency (Hz)', min_value=0e1, max_value=5e5, value=1e4)
 # frequency = 10000 # 10 kHz
 frequency = freq_input
 
@@ -115,7 +115,7 @@ with st.form("Excitation"):
     with col1:
         intensity_input = st.number_input('Intensity (0.1= 100mW/cm^2= 1 Sun)', min_value=0e0, max_value=1e8, value=1e1, format='%e')
     with col2:
-        wl_input = st.number_input('Wavelength', min_value=0e0, max_value=1e3, value=455e-9, format='%e')
+        wl_input = st.number_input('Wavelength (nm.)', min_value=3e2, max_value=1e3, value=4.55e2, format='%e')
     with col3:
         NA_input = st.number_input('Numerical Aperture', min_value=0.1, max_value=3.5, value=0.6)
 
@@ -124,7 +124,7 @@ with st.form("Excitation"):
     if submitted:
         with st.spinner('Loading graphs...'):
             # device.exc_source(intensity=10, wl=455e-9, NA=0.6)
-            device.exc_source(intensity=intensity_input, wl=wl_input, NA=NA_input)
+            device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
             device.make_pulse() # if we change the excitation, we shoud update the pulse
             device.simulate()
             fig_voltage, fig_dndt, _, _ = device.plot() # default: semilog False, charge_only True
@@ -156,12 +156,12 @@ with st.expander(label="See Current Values",expanded=False):
 with st.form("Sweep"):
     col1, col2 = st.columns(2, gap="medium")
     with col1:
-        lh_input = st.number_input('Lift Height', min_value=0e0, max_value=10e-6, value=1e-9, format='%e')
+        lh_input = st.number_input('Lift Height', min_value=0e0, max_value=1e4, value=1e0, format='%e')
     with col2:
         intensity_input = st.number_input('Intensity (0.1 = 100mW/cm^2 = 1 Sun)', min_value=0e0, max_value=1e8, value=1e1, format='%e')
     st.markdown("""---""")
 
-    st.write('Choose frequencies to plot')
+    st.write('Choose frequencies (Hz) to plot')
     col1, col2, col3 = st.columns(3, gap="medium")
     with col1:
         i1 = st.number_input('1', min_value=0e0, max_value=5e6, value=1e3, format='%e')
@@ -184,7 +184,7 @@ with st.form("Sweep"):
             devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input)
 
             # devicesweep.lift_height = 1e-9
-            devicesweep.lift_height = lh_input
+            devicesweep.lift_height = lh_input * 1e-9
 
             # devicesweep.intensity=10
             devicesweep.intensity=intensity_input
