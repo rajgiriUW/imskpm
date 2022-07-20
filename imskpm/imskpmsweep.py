@@ -185,30 +185,30 @@ class IMSKPMSweep(IMSKPMPoint):
         
         return popt
     
-    def plot(self):
+    def plot_sweep(self):
         '''
         Plots the average voltage vs frequency on semi-log plot
         '''
-        
-        
-        fig, ax = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax.semilogx(self.frequency_list, self.cpd_means, 'bs', markersize=6)
-        ax.set_ylabel('Voltage (V)')
-        ax.set_xlabel(r'Frequency (Hz)')
-        ax.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
+
+
+        fig_voltage, ax_voltage = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+        ax_voltage.semilogx(self.frequency_list, self.cpd_means, 'bs', markersize=6)
+        ax_voltage.set_ylabel('Voltage (V)')
+        ax_voltage.set_xlabel(r'Frequency (Hz)')
+        ax_voltage.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
         
         if hasattr(self, 'popt'): #has a fit
-            ax.semilogx(np.sort(self._fitting_xaxis), 
+            ax_voltage.semilogx(np.sort(self._fitting_xaxis),
                         (expf_2tau(np.sort(self._fitting_xaxis), *self.popt)), 
                         '--', color='k', label=np.round(self.popt[2:]*1e9,2))
         
         plt.tight_layout()
         
-        fig, ax2 = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        ax2.semilogx(self.frequency_list, self.n_dens_means, 'r^', markersize=6)
-        ax2.set_ylabel(r'Carrier Density ($cm^{-3}$)')
-        ax2.set_xlabel(r'Frequency (Hz)')
-        ax2.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
+        fig_dndt, ax_dndt = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+        ax_dndt.semilogx(self.frequency_list, self.n_dens_means, 'r^', markersize=6)
+        ax_dndt.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+        ax_dndt.set_xlabel(r'Frequency (Hz)')
+        ax_dndt.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
         plt.tight_layout()
         
-        return ax
+        return fig_voltage, fig_dndt, ax_voltage, ax_dndt
