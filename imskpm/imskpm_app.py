@@ -195,7 +195,7 @@ with st.form("Sweep"):
 
             devicesweep.simulate_sweep(verbose=False) #verbose displays outputs to the command window for feedback
 
-            fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot()
+            fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot_sweep()
 
             popt = devicesweep.fit(cfit=False)
             ax_voltage.plot(devicesweep.frequency_list, expf_1tau(devicesweep.frequency_list, *popt), 'r--')

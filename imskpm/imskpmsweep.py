@@ -185,7 +185,7 @@ class IMSKPMSweep(IMSKPMPoint):
         
         return popt
     
-    def plot(self):
+    def plot_sweep(self):
         '''
         Plots the average voltage vs frequency on semi-log plot
         '''
