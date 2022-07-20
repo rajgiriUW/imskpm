@@ -49,18 +49,24 @@ if charge_input=='on':
 else:
     charge_input=False
 
-st.header('Simulating a single IM-SKPM curve')
+st.header('Simulating an IM-SKPM curve')
 
 # Determine recombination rates
 st.sidebar.markdown("""---""")
+st.sidebar.subheader('Changing recombination rates')
 st.sidebar.write('$k_1 (units: /s)$')
 k1_input = st.sidebar.number_input('The monomoecular recombination rate, trapping/nonradiative recombination', min_value=1e3, max_value=1e10, value=1e6, format='%e')
-st.sidebar.markdown("""---""")
 st.sidebar.write('$k_2 (units: cm^3/s)$')
 k2_input = st.sidebar.number_input('The bimolecular recombination rate, band-band/radiative recombination', min_value=1e-13, max_value=1e-7, value=1e-10, format='%e')
-st.sidebar.markdown("""---""")
 st.sidebar.write('$k_3 (units: cm^6/s)$')
 k3_input = st.sidebar.number_input('The third order recombination rate, Auger recombination')
+
+# Determine the excitation
+st.sidebar.markdown("""---""")
+st.sidebar.subheader('Changing the Excitation')
+intensity_input = st.sidebar.number_input('Intensity (0.1= 100mW/cm^2= 1 Sun)', min_value=0e0, max_value=1e8, value=1e-1, format='%e')
+wl_input = st.sidebar.number_input('Wavelength (nm.)', min_value=3e2, max_value=1e3, value=4.55e2, format='%e')
+NA_input = st.sidebar.number_input('Numerical Aperture', min_value=0.1, max_value=3.5, value=0.6)
 
 # Determine frequency
 st.sidebar.markdown("""---""")
@@ -73,16 +79,16 @@ st.sidebar.markdown("""---""")
 cycles_input = st.sidebar.number_input('Max cycles', min_value=1, max_value=50, value=1)
 st.sidebar.markdown("""---""")
 
-# # Description TODO: CREATE TEXT BOX
 with st.expander(label="See Current Values",expanded=False):
     st.write('k1 = ', k1_input, ' , k2 = ', k2_input, ', k3 = ', k3_input)
+    st.write('Intensity = ', intensity_input, ', Wavelength = ', wl_input, ', Numerical Aperture', NA_input)
     st.write('Frequency = ', freq_input)
     st.write('Max Cycles = ', cycles_input)
-    st.write('Semilog on: ', semilog_input, ', Charge only: ', charge_input)
 
 # Plot the result
 with st.spinner('Loading graphs...'):
     device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input)
+    device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
     device.make_pulse(0,0,pulse_time = 1/frequency, start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
     device.pulse_train(max_cycles=cycles_input) # inserted from cycles function
     device.simulate()
@@ -96,53 +102,6 @@ with st.spinner('Loading graphs...'):
 
 #     fig_html = mpld3.fig_to_html(fig_dndt)
 #     components.html(fig_html, height=450)
-
-
-##----------------------------------------------
-## Changing the intensity, wavelenth, and numerical aperture
-
-st.markdown("""---""")
-st.header('Changing the Excitation:')
-st.subheader('Intensity, Wavelength, and Numerical Aperture')
-
-with st.expander(label="See Current Values",expanded=False):
-    st.write('k1 = ', k1_input, ' , k2 = ', k2_input, ', k3 = ', k3_input)
-    st.write('Frequency = ', freq_input)
-    st.write('Max Cycles = ', cycles_input)
-
-with st.form("Excitation"):
-    col1, col2, col3 = st.columns(3, gap="small")
-    with col1:
-        intensity_input = st.number_input('Intensity (0.1= 100mW/cm^2= 1 Sun)', min_value=0e0, max_value=1e8, value=1e1, format='%e')
-    with col2:
-        wl_input = st.number_input('Wavelength (nm.)', min_value=3e2, max_value=1e3, value=4.55e2, format='%e')
-    with col3:
-        NA_input = st.number_input('Numerical Aperture', min_value=0.1, max_value=3.5, value=0.6)
-
-    st.markdown("""---""")
-    submitted = st.form_submit_button("Simulate Changes")
-    if submitted:
-        with st.spinner('Loading graphs...'):
-            # device.exc_source(intensity=10, wl=455e-9, NA=0.6)
-            device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
-            device.make_pulse() # if we change the excitation, we shoud update the pulse
-            device.simulate()
-            fig_voltage, fig_dndt, _, _ = device.plot() # default: semilog False, charge_only True
-            st.pyplot(fig_voltage)
-            st.pyplot(fig_dndt)
-
-            # interactive graph
-#             fig_html = mpld3.fig_to_html(fig_voltage)
-#             components.html(fig_html, height=450)
-
-#             fig_html = mpld3.fig_to_html(fig_dndt)
-#             components.html(fig_html, height=450)
-
-# # Description TODO: CREATE TEXT BOX
-# st.write('Intensity: ', intensity_input)
-# st.write('Wavelength: ', wl_input)
-# st.write('Numerical aperture: ', NA_input)
-
 
 ##----------------------------------------------
 ## Sweep
