@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from matplotlib import pyplot as plt
-import mpld3
 
 import imskpm
 from imskpm.imskpmpoint import IMSKPMPoint
@@ -30,30 +29,11 @@ st.sidebar.header('Adjust Graph Settings')
 ##----------------------------------------------
 ## Simulating a single IM-SKPM curve
 
-# toggles
-st.sidebar.markdown("""---""")
-
-col1, col2 = st.sidebar.columns(2, gap="large")
-with col1:
-    semilog_input = st.select_slider('Semilog', options=['off','on'], value='off')
-with col2:
-    charge_input = st.select_slider('Charge only', options=['off', 'on'], value='off')
-
-if semilog_input=='on':
-    semilog_input=True
-else:
-    semilog_input=False
-
-if charge_input=='on':
-    charge_input=True
-else:
-    charge_input=False
-
 st.header('Simulating an IM-SKPM curve')
 
 # Determine recombination rates
 st.sidebar.markdown("""---""")
-st.sidebar.subheader('Changing recombination rates')
+st.sidebar.subheader('Changing Recombination Rates')
 st.sidebar.write('$k_1 (units: /s)$')
 k1_input = st.sidebar.number_input('The monomoecular recombination rate, trapping/nonradiative recombination', min_value=1e3, max_value=1e10, value=1e6, format='%e')
 st.sidebar.write('$k_2 (units: cm^3/s)$')
@@ -85,6 +65,23 @@ with st.expander(label="See Current Values",expanded=False):
     st.write('Frequency = ', freq_input)
     st.write('Max Cycles = ', cycles_input)
 
+# toggles
+col1, col2 = st.columns(2, gap="large")
+with col1:
+    semilog_input = st.select_slider('Semilog', options=['off','on'], value='off')
+with col2:
+    charge_input = st.select_slider('Charge only', options=['off', 'on'], value='off')
+
+if semilog_input=='on':
+    semilog_input=True
+else:
+    semilog_input=False
+
+if charge_input=='on':
+    charge_input=True
+else:
+    charge_input=False
+
 # Plot the result
 with st.spinner('Loading graphs...'):
     device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input)
@@ -93,15 +90,8 @@ with st.spinner('Loading graphs...'):
     device.pulse_train(max_cycles=cycles_input) # inserted from cycles function
     device.simulate()
     fig_voltage, fig_dndt, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
-    st.pyplot(fig_voltage)
     st.pyplot(fig_dndt)
-
-    # interactive graph
-#     fig_html = mpld3.fig_to_html(fig_voltage)
-#     components.html(fig_html, height=450)
-
-#     fig_html = mpld3.fig_to_html(fig_dndt)
-#     components.html(fig_html, height=450)
+    st.pyplot(fig_voltage)
 
 ##----------------------------------------------
 ## Sweep
@@ -162,11 +152,3 @@ with st.form("Sweep"):
             st.write('$Y_0: $', popt[0], '$A: $', popt[1], '$\\tau: $', popt[2])
             st.pyplot(fig_voltage)
             st.pyplot(fig_dndt)
-
-            # interactive graph
-#             fig_html = mpld3.fig_to_html(fig_voltage)
-#             components.html(fig_html, height=450)
-
-#             fig_html = mpld3.fig_to_html(fig_dndt)
-#             components.html(fig_html, height=450)
-
