@@ -347,6 +347,9 @@ class IMSKPMPoint:
         ax_voltage.set_title('Voltage at ' + str(np.round(self.frequency,2)) + ' Hz')
         plt.tight_layout()
 
+        '''
+        Plots carrier density
+        '''
         fig_dndt, ax_dndt = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
         if semilog:
             ax_dndt.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
@@ -363,7 +366,20 @@ class IMSKPMPoint:
 
         ax_dndt.set_xlabel(r'Time ($\mu$s)')
         ax_dndt.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
-
         plt.tight_layout()
 
-        return fig_voltage, fig_dndt, ax_voltage, ax_dndt
+        '''
+        Plots zoom in of carrier lifetime
+        '''
+        fig_zoom, ax_zoom = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+        idx = np.where(tx >= self.start_time + self.pulse_width)
+        if semilog:
+            ax_zoom.semilogy(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
+        else:
+            ax_zoom.plot(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
+        ax_zoom.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+        ax_zoom.set_xlabel(r'Time ($\mu$s)')
+        ax_zoom.set_title(r'Carrier Lifetime, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
+        plt.tight_layout()
+
+        return fig_voltage, ax_voltage, fig_dndt, ax_dndt, fig_zoom, ax_zoom

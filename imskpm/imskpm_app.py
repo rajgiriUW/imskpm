@@ -17,13 +17,20 @@ st.title('Intensity-Modulated Scanning Kelvin Probe Microscopy (IM-SKPM)')
 st.subheader('Rajiv Giridharagopal, Ph.D.')
 st.subheader('University of Washington, rgiri@uw.edu')
 
-# with st.expander('Quick Guide'):
-#     st.write('''
-#     Insert additional information''')
+with st.expander('Quick Guide'):
+    st.write("Simulating IM-SKPM in photovoltaics based on conventional charge density recombination ODE.")
+    st.write("This approach simulates equations of the form:")
+    st.latex("\\frac {dn} {dt} = G-k_1n -k_2n^2-k_3n^3")
+    st.write("where:")
+    st.write("""
+* $n$ = carrier density (#$/cm^3$)
+* $\\frac {dn} {dt} $ = change in carrier density (#$/{cm^3s}$)
+* $G$ = generation rate (#$/cm^3$)
+* $k_1$ = monomoecular recombination rate ($/s$), trapping/nonradiative recombination
+* $k_2$ = bimolecular recombination rate ($cm^3/s$), band-band/radiative recombination
+* $k_3$ = third order recombination rate ($cm^6/s$), Auger recombination""")
 
 st.markdown("""---""")
-
-st.sidebar.header('Adjust Graph Settings')
 
 
 ##----------------------------------------------
@@ -32,7 +39,6 @@ st.sidebar.header('Adjust Graph Settings')
 st.header('Simulating an IM-SKPM curve')
 
 # Determine recombination rates
-st.sidebar.markdown("""---""")
 st.sidebar.subheader('Changing Recombination Rates')
 st.sidebar.write('$k_1 (units: /s)$')
 k1_input = st.sidebar.number_input('The monomoecular recombination rate, trapping/nonradiative recombination', min_value=1e3, max_value=1e10, value=1e6, format='%e')
@@ -44,13 +50,15 @@ k3_input = st.sidebar.number_input('The third order recombination rate, Auger re
 # Determine the excitation
 st.sidebar.markdown("""---""")
 st.sidebar.subheader('Changing the Excitation')
-intensity_input = st.sidebar.number_input('Intensity (0.1= 100mW/cm^2= 1 Sun)', min_value=0e0, max_value=1e8, value=1e-1, format='%e')
-wl_input = st.sidebar.number_input('Wavelength (nm.)', min_value=3e2, max_value=1e3, value=4.55e2, format='%e')
+rise_input = st.sidebar.number_input('Rise Time (s)', min_value=0e0, max_value=1e-3, value=0e0, format='%e')
+fall_input = st.sidebar.number_input('Fall Time (s)', min_value=0e0, max_value=1e-3, value=0e0, format='%e')
+intensity_input = st.sidebar.number_input('Intensity (0.1 = 100mW/cm^2 = 1 Sun)', min_value=0e0, max_value=1e8, value=1e-1, format='%e')
+wl_input = st.sidebar.number_input('Wavelength (nm)', min_value=3e2, max_value=1e3, value=4.55e2, format='%e')
 NA_input = st.sidebar.number_input('Numerical Aperture', min_value=0.1, max_value=3.5, value=0.6)
 
 # Determine frequency
 st.sidebar.markdown("""---""")
-freq_input = st.sidebar.number_input('Frequency (Hz)', min_value=0e1, max_value=5e5, value=1e4)
+freq_input = st.sidebar.number_input('Frequency (Hz)', min_value=0e0, max_value=1e12, value=1e4, format='%e')
 # frequency = 10000 # 10 kHz
 frequency = freq_input
 
@@ -82,16 +90,92 @@ if charge_input=='on':
 else:
     charge_input=False
 
+# buttons
+st.caption("")
+st.markdown("**Select the graph to display:**")
+b1, b2, b3 = st.columns(3, gap="large")
+with b1:
+    carrier = st.button("Carriers Generated")
+with b2:
+    voltage = st.button("Voltage")
+with b3:
+    lifetime = st.button("Carrier Lifetime")
+
+placeholder = st.empty()
+
 # Plot the result
 with st.spinner('Loading graphs...'):
     device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input)
     device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
-    device.make_pulse(0,0,pulse_time = 1/frequency, start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
+    device.make_pulse(rise=rise_input, fall=fall_input, pulse_time = 1/frequency, start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
     device.pulse_train(max_cycles=cycles_input) # inserted from cycles function
     device.simulate()
-    fig_voltage, fig_dndt, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
-    st.pyplot(fig_dndt)
-    st.pyplot(fig_voltage)
+    fig_voltage, _, fig_dndt, _, fig_zoom, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
+
+    if carrier:
+        st.pyplot(fig_dndt)
+    if voltage:
+        st.pyplot(fig_voltage)
+    if lifetime:
+        st.pyplot(fig_zoom)
+
+##----------------------------------------------##############
+## Changing the Simuation
+st.markdown("""---""")
+st.header('Changing the Simulation')
+
+# define a new function
+# you generally always want the first two lines (to find the input light pulse value)
+def new_dn_dt(t, n, i, k1, k2, k3, pulse, dt):
+
+    tidx = min(int(np.floor(t / dt)), len(pulse)-1)
+    g = pulse[tidx]
+
+    return eval(equation)
+
+with st.expander(label="See Current Values",expanded=False):
+    st.write('k1 = ', k1_input, ' , k2 = ', k2_input, ', k3 = ', k3_input)
+    st.write('Intensity = ', intensity_input, ', Wavelength = ', wl_input, ', Numerical Aperture', NA_input)
+    st.write('Frequency = ', freq_input)
+    st.write('Max Cycles = ', cycles_input)
+
+
+# frequency = freq_input
+device = IMSKPMPoint()
+device.kinetics(k1 = k1_input, k2=k2_input,k3=k3_input)
+device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
+device.make_pulse(rise=rise_input, fall=fall_input, pulse_time = 1/frequency, start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
+device.pulse_train(max_cycles=cycles_input)
+
+i = 1e3 # 10^15/cm^3 into /um^3
+gen = imskpm.calc_utils.gen_t(device.absorbance, device.pulse, device.thickness)
+gen = gen * 1e-12 # to convert to /um^3 for computational accuracy
+
+
+options = st.multiselect('What variables will you be using?', ['a', 'b', 'c', 'd', 'f', 'h',
+                                                               'i', 'j', 'k', 'l', 'm', 'o',
+                                                               'p', 'q', 'r', 's', 'u', 'v',
+                                                               'w', 'x', 'y', 'z'],['i'])
+for option in options:
+    val = st.number_input(option + " = ", value = 0e0, format='%e')
+    exec(option + "=" + str(val))
+
+with st.form("Changing the Simulation"):
+    device.args = (i, device.k1, device.k2, device.k3, gen, device.dt)
+    equation = st.text_input('Input an Equation', 'g - k1*(n+i) + k2 * n**2 + k3 * n**3')
+    submitted = st.form_submit_button("Generate Graph")
+    if submitted:
+        try:
+            device.func = new_dn_dt
+            with st.spinner('Loading graphs...'):
+                device.simulate()
+                fig_voltage, _, fig_dndt, _, fig_zoom, _ = device.plot()
+                st.pyplot(fig_dndt)
+                st.pyplot(fig_voltage)
+                st.pyplot(fig_zoom)
+        except:
+            st.warning('Equation not valid. Please check for errors.')
+
 
 ##----------------------------------------------
 ## Sweep
@@ -108,47 +192,37 @@ with st.form("Sweep"):
         lh_input = st.number_input('Lift Height', min_value=0e0, max_value=1e4, value=1e0, format='%e')
     with col2:
         intensity_input = st.number_input('Intensity (0.1 = 100mW/cm^2 = 1 Sun)', min_value=0e0, max_value=1e8, value=1e1, format='%e')
-    st.markdown("""---""")
 
-    st.write('Choose frequencies (Hz) to plot')
-    col1, col2, col3 = st.columns(3, gap="medium")
-    with col1:
-        i1 = st.number_input('1', min_value=0e0, max_value=5e6, value=1e3, format='%e')
-        i4 = st.number_input('2', min_value=0e0, max_value=5e6, value=5e4, format='%e')
-        i7 = st.number_input('3', min_value=0e0, max_value=5e6, value=1e6, format='%e')
-    with col2:
-        i2 = st.number_input('4', min_value=0e0, max_value=5e6, value=5e3, format='%e')
-        i5 = st.number_input('5', min_value=0e0, max_value=5e6, value=1e5, format='%e')
-        i8 = st.number_input('6', min_value=0e0, max_value=5e6, value=5e5, format='%e')
-    with col3:
-        i3 = st.number_input('7', min_value=0e0, max_value=5e6, value=1e4, format='%e')
-        i6 = st.number_input('8', min_value=0e0, max_value=5e6, value=5e5, format='%e')
-        i9 = st.number_input('9', min_value=0e0, max_value=5e6, value=1e6, format='%e')
+    st.markdown("""---""")
+    st.write("Select a range of frequencies:")
+    c1, c2, c3= st.columns(3, gap="medium")
+    with c1:
+        start_freq_input = st.number_input('Start', min_value=0e0, max_value=1e12, value=1e3, format='%e')
+    with c2:
+        stop_freq_input = st.number_input('Stop', min_value=0e0, max_value=1e12, value=1e6, format='%e')
+    with c3:
+        num_freq_input = st.number_input('Number of frequencies', min_value=2, max_value=50, value=10)
+    valid_range = start_freq_input < stop_freq_input
+    frequencies_input = np.logspace(np.log10(start_freq_input), np.log10(stop_freq_input), num_freq_input)
 
     st.markdown("""---""")
     submitted = st.form_submit_button("Simulate Graph")
     if submitted:
-        with st.spinner('Loading graphs...'):
-            # devicesweep = IMSKPMSweep(k1=1e6, k2=1e-10, k3=0)
-            devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input)
+        if valid_range:
+            with st.spinner('Loading graphs...'):
+                devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input)
+                devicesweep.lift_height = lh_input * 1e-9
+                devicesweep.intensity=intensity_input
+                devicesweep.frequency_list = frequencies_input
+                devicesweep.simulate_sweep(verbose=False) #verbose displays outputs to the command window for feedback
 
-            # devicesweep.lift_height = 1e-9
-            devicesweep.lift_height = lh_input * 1e-9
+                fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot_sweep()
 
-            # devicesweep.intensity=10
-            devicesweep.intensity=intensity_input
+                popt = devicesweep.fit(cfit=False)
+                ax_voltage.plot(devicesweep.frequency_list, expf_1tau(devicesweep.frequency_list, *popt), 'r--')
 
-            # Let's update the default list (which is from 100 Hz to 80 MHz) to save time
-            devicesweep.frequency_list = np.array([i1, i2, i3, i4, i5, i6, i7, i8, i9])
-            devicesweep.frequency_list.sort()
-
-            devicesweep.simulate_sweep(verbose=False) #verbose displays outputs to the command window for feedback
-
-            fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot_sweep()
-
-            popt = devicesweep.fit(cfit=False)
-            ax_voltage.plot(devicesweep.frequency_list, expf_1tau(devicesweep.frequency_list, *popt), 'r--')
-
-            st.write('$Y_0: $', popt[0], '$A: $', popt[1], '$\\tau: $', popt[2])
-            st.pyplot(fig_voltage)
-            st.pyplot(fig_dndt)
+                st.write('$Y_0: $', popt[0], '$A: $', popt[1], '$\\tau: $', popt[2])
+                st.pyplot(fig_voltage)
+                st.pyplot(fig_dndt)
+        else:
+            st.warning("Make sure the start frequency is less than the stop frequency.")
