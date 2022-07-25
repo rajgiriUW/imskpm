@@ -110,7 +110,7 @@ with st.spinner('Loading graphs...'):
     device.make_pulse(rise=rise_input, fall=fall_input, pulse_time = 1/frequency, start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
     device.pulse_train(max_cycles=cycles_input) # inserted from cycles function
     device.simulate()
-    fig_voltage, _, fig_dndt, _, fig_zoom, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
+    fig_voltage, fig_dndt, fig_zoom, _, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
 
     if carrier:
         st.pyplot(fig_dndt)
@@ -169,7 +169,7 @@ with st.form("Changing the Simulation"):
             device.func = new_dn_dt
             with st.spinner('Loading graphs...'):
                 device.simulate()
-                fig_voltage, _, fig_dndt, _, fig_zoom, _ = device.plot()
+                fig_voltage, fig_dndt, fig_zoom, _, _, _ = device.plot()
                 st.pyplot(fig_dndt)
                 st.pyplot(fig_voltage)
                 st.pyplot(fig_zoom)
