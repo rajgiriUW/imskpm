@@ -35,7 +35,7 @@ class IMSKPMPoint:
     >> from imskpm.imskpmpoint import IMSKPMPoint
     >> device = IMSKPMPoint()
     >> frequency = 100 # 100 Hz
-    >> device.make_pulse(0,0,1/frequency,1/(4*frequency),1/(1/2*frequency))
+    >> device.make_pulse(0,0,1/frequency,1/(4*frequency),1/(2*frequency))
     >> device.simulate()
     >> device.plot()
     
@@ -164,6 +164,11 @@ class IMSKPMPoint:
         self.pulse_width = pulse_width
         self.frequency = 1/pulse_time
         
+        if self.dt > self.pulse_time/100:
+            self.dt = self.pulse_time*1e-2
+        else:
+            self.dt = 1e-7
+        
         if self.start_time + self.pulse_width > self.pulse_time:
             
             warnings.warn('Pulse exceeds total_time, cropping width to match')
@@ -285,10 +290,10 @@ class IMSKPMPoint:
             self._error = True
             if hasattr(self, 'args'):
                 sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                            args = self.args, max_step=1e-6)
+                            args = self.args, max_step=self.dt)
             else:
                 sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
-                                args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=1e-6)
+                                args = (k1, k2, k3, gen, tx[1]-tx[0]), max_step=self.dt)
             
         n_dens = sol.y.flatten()
         
