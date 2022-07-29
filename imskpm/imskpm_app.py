@@ -171,9 +171,43 @@ def download_sweep_data(sweep_data):
         mime='text/csv',
     )
 
+def download_n_dens(n_dens):
+    '''
+    Downloads n_dens as a csv file
+
+    Parameters
+    ----------
+    n_dens : ndarray
+        An ndarray of n_dens to download
+
+    '''
+    df = pd.DataFrame(n_dens)
+    csv = convert_df(df)
+    st.download_button(
+        label="Download Carrier Densities as CSV",
+        data=csv,
+        file_name='n_dens.csv',
+        mime='text/csv',
+    )
+
+
+# define a new function
+# you generally always want the first two lines (to find the input light pulse value)
+def new_dn_dt(t, n, k1, k2, k3, pulse, dt, *var_val):
+
+    tidx = min(int(np.floor(t / dt)), len(pulse)-1)
+    g = pulse[tidx]
+
+    for var in var_val:
+        exec(var[0] + "=" + str(var[1])) # declares new variables
+
+    return eval(equation)
+
+
 def sim_charge_density():
     '''
     Simulates charge density
+
     '''
 
     st.header('Simulate Charge Density')
@@ -182,7 +216,6 @@ def sim_charge_density():
         st.write(sidebar_data)
 
     # toggles
-    st.write("")
     col1, col2 = st.columns(2, gap="large")
     with col1:
         semilog_input = st.select_slider('Semilog', options=['off','on'], value='off')
@@ -199,70 +232,52 @@ def sim_charge_density():
     else:
         charge_input=False
 
+    device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input)
+    device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
+    device.make_pulse(rise=rise_input, fall=fall_input, pulse_time = 1/frequency,
+                      start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
+    device.pulse_train(max_cycles=cycles_input) # inserted from cycles function
 
-    # define a new function
-    # you generally always want the first two lines (to find the input light pulse value)
-    def new_dn_dt(t, n, k1, k2, k3, pulse, dt, *var_val):
+    #     i = 1e3 # 10^15/cm^3 into /um^3
+    gen = imskpm.calc_utils.gen_t(device.absorbance, device.pulse, device.thickness)
 
-        tidx = min(int(np.floor(t / dt)), len(pulse)-1)
-        g = pulse[tidx]
+    st.subheader('Change the Rate Equation')
+    options = st.multiselect('What variables will you be using?', ['a', 'b', 'c', 'd', 'f', 'h',
+                                                                   'i', 'j', 'k', 'l', 'm', 'o',
+                                                                   'p', 'q', 'r', 's', 'u', 'v',
+                                                                   'w', 'x', 'y', 'z'])
+    var_val = {} # dict that maps variable name to value
+    for option in options:
+        val = st.number_input(option + " = ", value = 0e0, format='%e')
+        var_val[option] = val
 
-        for var in var_val:
-            exec(var[0] + "=" + str(var[1]))
+    tuple_list = list(var_val.items()) # makes a list of tuples: (var, val)
 
-        return eval(equation)
+    scale = 1e-4 #1 = /cm^3, 1e-4 = /um^3, 1e2 = /m^2
+    args_tuple = (device.k1, device.k2/scale**3, device.k3/scale**6, gen*scale**3, device.dt) + tuple(tuple_list)
+
+    device.args = args_tuple
+    global equation
+    equation = st.text_input('Input an Equation', 'g - k1 * n - k2 * n**2 - k3 * n**3')
+
+    # buttons
+    st.write("")
+    st.write("*Select a graph to display:*")
+    b1, b2, b3 = st.columns(3, gap="large")
+    with b1:
+        carrier = st.button("Carriers Generated")
+    with b2:
+        voltage = st.button("Voltage")
+    with b3:
+        lifetime = st.button("Carrier Lifetime")
+
+    placeholder = st.empty()
 
 
     # Plot the result
-    with st.spinner('Loading graphs...'):
-        device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input)
-        device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
-        device.make_pulse(rise=rise_input, fall=fall_input, pulse_time = 1/frequency,
-                          start_time = 1/(4*frequency), pulse_width = 1/(2*frequency))
-        device.pulse_train(max_cycles=cycles_input) # inserted from cycles function
-
-        #     i = 1e3 # 10^15/cm^3 into /um^3
-        gen = imskpm.calc_utils.gen_t(device.absorbance, device.pulse, device.thickness)
-        gen = gen * 1e-12 # to convert to /um^3 for computational accuracy
-
-        st.write("")
-        st.subheader('Change the Rate Equation')
-        options = st.multiselect('What variables will you be using?', ['a', 'b', 'c', 'd', 'f', 'h',
-                                                                       'i', 'j', 'k', 'l', 'm', 'o',
-                                                                       'p', 'q', 'r', 's', 'u', 'v',
-                                                                       'w', 'x', 'y', 'z'])
-
-        var_val = {}
-        for option in options:
-            val = st.number_input(option + " = ", value = 0e0, format='%e')
-            exec(option + "=" + str(val))
-            var_val[option] = val
-
-        #         st.write(var_val) # TESTING CODE
-
-        tuple_list = list(var_val.items())
-
-        args_tuple = (device.k1, device.k2, device.k3, gen, device.dt) + tuple(tuple_list)
-        device.args = args_tuple
-        #         st.write(args_tuple) # test code: DELETE LATER
-        #     device.args = (i, device.k1, device.k2, device.k3, gen, device.dt)
-        equation = st.text_input('Input an Equation', 'g - k1 * n - k2 * n**2 - k3 * n**3')
-
-        # buttons
-        st.write("")
-        st.write("*Select a graph to display:*")
-        b1, b2, b3 = st.columns(3, gap="large")
-        with b1:
-            carrier = st.button("Carriers Generated")
-        with b2:
-            voltage = st.button("Voltage")
-        with b3:
-            lifetime = st.button("Carrier Lifetime")
-
-        placeholder = st.empty()
-
-        if carrier or voltage or lifetime:
-            try:
+    if carrier or voltage or lifetime:
+        try:
+            with st.spinner('Loading graphs...'):
                 device.func = new_dn_dt
                 device.simulate()
                 fig_voltage, fig_dndt, fig_zoom, _, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
@@ -276,16 +291,9 @@ def sim_charge_density():
                     placeholder.pyplot(fig_zoom)
 
                 # Allow n_dens download
-                df = pd.DataFrame(device.n_dens)
-                csv = convert_df(df)
-                st.download_button(
-                    label="Download Carrier Densities as CSV",
-                    data=csv,
-                    file_name='n_dens.csv',
-                    mime='text/csv',
-                )
-            except:
-                placeholder.warning('Equation not valid. Please check for errors.')
+                download_n_dens(device.n_dens)
+        except:
+            placeholder.warning('Equation not valid. Please check for errors.')
 
 
 def sweep():
@@ -317,23 +325,26 @@ def sweep():
     with c2:
         stop_freq_input = st.number_input('Stop (Hz)', min_value=0e0, max_value=1e12, value=1e6, format='%e')
     with c3:
-        num_freq_input = st.number_input('Number of frequencies', min_value=2, max_value=50, value=10)
+        num_freq_input = st.number_input('Number of frequencies', min_value=2, max_value=50, value=7)
 
     st.write("")
+
+    #####################
     #     st.subheader('Change the Rate Equation')
     #     options = st.multiselect('What variables will you be using for the sweep?', ['a', 'b', 'c', 'd', 'f', 'h',
-    #                                                                    'i', 'j', 'k', 'l', 'm', 'o',
-    #                                                                    'p', 'q', 'r', 's', 'u', 'v',
-    #                                                                    'w', 'x', 'y', 'z'])
+    #                                                                                  'i', 'j', 'k', 'l', 'm', 'o',
+    #                                                                                  'p', 'q', 'r', 's', 'u', 'v',
+    #                                                                                  'w', 'x', 'y', 'z'])
     #     var_val = {}
     #     for option in options:
     #         val = st.number_input(option + " = ", value = 0e0, format='%e')
-    #         exec(option + "=" + str(val))
     #         var_val[option] = val
 
     #     tuple_list = list(var_val.items())
 
+    #     global equation
     #     equation = st.text_input('Input an equation for the sweep', 'g - k1 * n - k2 * n**2 - k3 * n**3')
+    #####################
 
     # button
     start_sweep = st.button("Simulate Sweep")
@@ -344,19 +355,24 @@ def sweep():
 
     if valid_range:
         frequencies_input = np.logspace(np.log10(start_freq_input), np.log10(stop_freq_input), num_freq_input)
+        devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input)
+        devicesweep.k1 = k1_input
+        devicesweep.k2 = k2_input
+        devicesweep.k3 = k3_input
+        devicesweep.lift_height = lh_input * 1e-9
+        devicesweep.intensity=intensity_input
+        devicesweep.frequency_list = frequencies_input
+        #################
+        #         gen = imskpm.calc_utils.gen_t(devicesweep.absorbance, devicesweep.pulse, devicesweep.thickness)
+        #         #gen = gen * 1e-12 # to convert to /um^3 for computational accuracy
+        #         scale = 1e-4 #1 = /cm^3, 1e-4 = /um^3, 1e2 = /m^2
+        #         args_tuple = (devicesweep.k1, devicesweep.k2/scale**3, devicesweep.k3/scale**6, gen*scale**3, devicesweep.dt) + tuple(tuple_list)
+        # #         st.write(args_tuple)
+        #         devicesweep.args = args_tuple
+        #         devicesweep.func = new_dn_dt
+        #################
         if start_sweep:
             with st.spinner('Loading graphs...'):
-                devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input)
-                devicesweep.lift_height = lh_input * 1e-9
-                devicesweep.intensity=intensity_input
-                devicesweep.frequency_list = frequencies_input
-
-                #                 gen = imskpm.calc_utils.gen_t(devicesweep.absorbance, devicesweep.pulse, devicesweep.thickness)
-                #                 gen = gen * 1e-12 # to convert to /um^3 for computational accuracy
-                #                 args_tuple = (devicesweep.k1, devicesweep.k2, devicesweep.k3, gen, devicesweep.dt) + tuple(tuple_list)
-                #                 devicesweep.args = args_tuple
-                #                 devicesweep.func = new_dn_dt
-
                 devicesweep.simulate_sweep(verbose=False) #verbose displays outputs to the command window for feedback
                 fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot_sweep()
                 popt = devicesweep.fit(cfit=False)
