@@ -184,7 +184,7 @@ class IMSKPMSweep(IMSKPMPoint):
 
         return popt
 
-    def plot_sweep(self):
+    def plot_sweep(self, upload_data=None):
         '''
         Plots the average voltage vs frequency on semi-log plot
         '''
@@ -200,6 +200,17 @@ class IMSKPMSweep(IMSKPMPoint):
             ax_voltage.semilogx(np.sort(self._fitting_xaxis),
                                 (expf_2tau(np.sort(self._fitting_xaxis), *self.popt)),
                                 '--', color='k', label=np.round(self.popt[2:]*1e9,2))
+
+        #         graph uploaded data
+        if upload_data is not None:
+            try:
+                ax2 = ax_voltage.twinx()
+                ax2.plot(upload_data[:, 0], upload_data[:, 1], marker='o', color='tab:green',
+                         fillstyle='none', linestyle='none', label='Uploaded data')
+                ax2.set_ylabel(r'Uploaded data - Voltage (V)')
+                ax2.legend(bbox_to_anchor=(1, 0), loc="lower right", bbox_transform=fig_voltage.transFigure)
+            except:
+                raise Warning("Check the uploaded file for errors.")
 
         plt.tight_layout()
 
