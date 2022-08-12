@@ -114,18 +114,34 @@ class IMSKPMPoint:
 
         return
 
-    def make_pulse(self, rise = 0, fall = 0, pulse_time = 10e-3,
-                   start_time = 2.5e-3, pulse_width = 5e-3):
+    def make_pulse(self, 
+                   rise = 0, 
+                   fall = 0, 
+                   frequency = 0,
+                   pulse_time = 10e-3,
+                   start_time = 2.5e-3, 
+                   pulse_width = 5e-3):
         '''
         Creates a single light pulse. The amplitude is defined by the attribute
         intensity. If you want to use a different incident intensity, then you need
         to re-call this function after setting self.intensity.
+
+        You can either specify the frequency if non-0 and default to 50% duty cycle
+        starting at 25% of the cycle, or explicitly define timings.        
 
         For a given frequency F, you can use these as reasonable values:
             pulse_time = 1/F
             pulse_width = 1/(2*F) (i.e. half the pulse_time)
             start_time = 1/(4*F) (pulse starts about 25% in)
 
+        Specify a frequency:
+        >> device = IMSKPMPoint()
+        >> device.make_pulse(frequency=1e6) # makes a 1 MHz pulse (1 us per cycle)
+        
+        An arbitrary pulse shape
+        >> device.make_pulse(pulse_time = 1e-3, start_time=0.5e-3, pulse_width=1e-4)
+
+        Increasing the intensity requires re-runnning this function
         >> device = IMSKPMPoint() # default intensity is 0.1 = 100 mW/cm^2 = 1 Sun
         >> device.intensity = 1e-4
         >> device.make_pulse(...) with your desired parameters
@@ -140,11 +156,14 @@ class IMSKPMPoint:
             Rise time of the pulse (s). The default is 0.
         fall : float
             Fall time of the pulse (s). The default is 0.
-        pulse_time : TYPE, optional
+        frequency : float, optional
+            The frequency (Hz) of the pulse, for 1 cycle. Default is 0. This parameter
+            is checked first if it's >0, then it will use it. Otherwise pulse_time is used
+        pulse_time : float, optional
             Total time of the pulse (s). The default is 10e-3.
-        start_time : TYPE, optional
+        start_time : float, optional
             Start time (s) of the pulse. The default is 2.5e-3.
-        pulse_width : TYPE, optional
+        pulse_width : float, optional
             Width of the pulse (s). The default is 5e-3.
         '''
         if rise == 0 and fall == 0:
@@ -159,15 +178,21 @@ class IMSKPMPoint:
             self.rise = max(rise, 1e-14)
             self.fall = max(fall, 1e-14)
 
-        self.pulse_time = pulse_time
-        self.start_time = start_time
-        self.pulse_width = pulse_width
-        self.frequency = 1/pulse_time
+        if frequency > 0:
+            self.frequency = frequency
+            self.pulse_time = 1/frequency
+            self.pulse_width = 0.5 * 1/frequency
+            self.start_time = 0.25 * 1/frequency
+        else:    
+            self.pulse_time = pulse_time
+            self.start_time = start_time
+            self.pulse_width = pulse_width
+            self.frequency = 1/pulse_time
 
         if self.dt > self.pulse_time/100:
             self.dt = self.pulse_time*1e-2
         else:
-            self.dt = 1e-7
+            self.dt = min(1e-7, self.dt)
 
         if self.start_time + self.pulse_width > self.pulse_time:
 
@@ -177,6 +202,8 @@ class IMSKPMPoint:
         self.tx = np.arange(0, self.pulse_time, self.dt)
         self.pulse = pulse(self.tx, self.start_time, self.pulse_width,
                            self.intensity, self.rise, self.fall)
+
+        self.gen = gen_t(self.absorbance, self.pulse, self.thickness) # electrons / cm^3 / s generated
 
         return
 
@@ -218,12 +245,14 @@ class IMSKPMPoint:
         if len(self.tx) > len(self.pulse):
             self.tx = self.tx[:len(self.pulse)]
 
+        self.gen = gen_t(self.absorbance, self.pulse, self.thickness) # electrons / cm^3 / s generated
+
         return
 
     def kinetics(self, k1, k2, k3, absorbance=None):
         '''
-        Set the k1, k2, k3, and absorbance via function call rather than explicitly
-
+        Set the k1, k2, k3, and absorbance via function call rather than explicitly.
+        
         Parameters
         ----------
         k1 : float
@@ -251,22 +280,24 @@ class IMSKPMPoint:
 
         To use a different function, user must supply self.args and self.init
             (the arguments for the function and initial values for the function)
+        
+        Important! If using a user-defined function, the arguments must be scaled
+        to be in units of microns rather than centimeters, for computational accuracy.
+        Typically this means multiply k2 by 1e12 and k3 by 1e24.
 
         Returns
         -------
         n_dens : float
-            Char density in the film due to ODE (Generation - Recombination) (#/cm^3).
+            Charge density in the film due to ODE (Generation - Recombination) (#/cm^3).
         sol :  `OdeSolution`
             (From Scipy) Found solution as `OdeSolution` instance
         gen : float
-            Carrier concentration GENERATED (#/cm^3).
+            Carrier concentration GENERATED (#/cm^3) pre-recombination by the incident light pulse,.
         '''
-
-        gen = gen_t(self.absorbance, self.pulse, self.thickness) # electrons / cm^3 / s generated
 
         # Used for computational accuracy
         scale = 1e-4 #1 = /cm^3, 1e-4 = /um^3, 1e2 = /m^2
-        gen = gen * scale**3 #(from /cm^3)
+        gen = self.gen * scale**3 #(from /cm^3)
         k1 = self.k1
         k2 = self.k2 / scale**3 #(from cm^3/s)
         k3 = self.k3 / scale**6 #(from cm^6/s)
@@ -275,6 +306,12 @@ class IMSKPMPoint:
         func = self.func
 
         if hasattr(self, 'args'):
+            
+            for a in self.args:
+                if type(a)==float:
+                    if 0 < a < 1e-8:
+                        warnings.warn('Did you scale args by 1e-4 to convert to microns? See docstring for calc_n_dot')
+            
             sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                             args = self.args)
         else:
@@ -286,7 +323,7 @@ class IMSKPMPoint:
         # Decrease default step size if solution fails
         if not any(np.where(sol.y.flatten() > 0)[0]):
 
-            #print('error in solve, changing max_step_size')
+            # print('error in solve, changing max_step_size')
             self._error = True
             if hasattr(self, 'args'):
                 sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
@@ -336,11 +373,14 @@ class IMSKPMPoint:
 
         return
 
-    def plot(self, semilog=False, charge_only=True):
+    def plot(self, semilog=False, charge_only=True, lifetime=False):
         '''
         Plots the calculated voltage
         '''
-        plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        try:
+            plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        except:
+            pass
         tx = self.sol.t
         fig_voltage, ax_voltage = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
         ax_voltage.plot(tx*1e6, self.voltage, 'g')
@@ -376,15 +416,20 @@ class IMSKPMPoint:
         '''
         Plots carrier lifetime
         '''
-        fig_lifetime, ax_lifetime = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-        idx = np.where(tx >= self.start_time + self.pulse_width)
-        if semilog:
-            ax_lifetime.semilogy(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
-        else:
-            ax_lifetime.plot(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
-        ax_lifetime.set_ylabel(r'Carrier Density ($cm^{-3}$)')
-        ax_lifetime.set_xlabel(r'Time ($\mu$s)')
-        ax_lifetime.set_title(r'Carrier Lifetime, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
-        plt.tight_layout()
-
-        return fig_voltage, fig_dndt, fig_lifetime, ax_voltage, ax_dndt, ax_lifetime
+        
+        if lifetime:
+        
+            fig_lifetime, ax_lifetime = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
+            idx = np.where(tx >= self.start_time + self.pulse_width)
+            if semilog:
+                ax_lifetime.semilogy(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
+            else:
+                ax_lifetime.plot(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
+            ax_lifetime.set_ylabel(r'Carrier Density ($cm^{-3}$)')
+            ax_lifetime.set_xlabel(r'Time ($\mu$s)')
+            ax_lifetime.set_title(r'Carrier Lifetime, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
+            plt.tight_layout()
+        
+            return fig_voltage, fig_dndt, fig_lifetime, ax_voltage, ax_dndt, ax_lifetime
+        
+        return fig_voltage, fig_dndt, ax_voltage, ax_dndt

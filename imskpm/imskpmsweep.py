@@ -8,7 +8,6 @@ Created on Tue Feb  8 12:02:07 2022
 from .imskpmpoint import IMSKPMPoint
 import numpy as np
 import matplotlib.pyplot as plt
-from .odes import dn_dt_g
 from .fitting import cost_fit, expf_1tau, expf_2tau
 from scipy.optimize import curve_fit as cf
 
@@ -30,7 +29,7 @@ class IMSKPMSweep(IMSKPMPoint):
     >> devicesweep.simulate_sweep(verbose=True)
 
     * Plot the result
-    >> devicesweep.plot()
+    >> devicesweep.plot_sweep()
 
     * Change simulation parameters
     >> devicesweep.kinetics(k1 = 1.2e6, k2=1e-10,k3=0)
@@ -56,7 +55,7 @@ class IMSKPMSweep(IMSKPMPoint):
                  k3 = 0,
                  thickness = 500e-7):
 
-        super().__init__()
+        super().__init__(intensity, k1, k2, k3, thickness)
         self.frequencies()
 
         return
@@ -67,12 +66,15 @@ class IMSKPMSweep(IMSKPMPoint):
             The list of frequencies to use
         '''
         if arr is None:
-            #self.frequency_list = np.array([4e-8, 1e-7, 4e-7, 1e-06, 4e-6, 1e-05, 4e-5, 1e-04, 4e-4, 1e-03, 4e-3])
+
             self.frequency_list = np.array([100, 200, 400, 700, 1000,
-                                            2000, 4000, 7000, 1e4, 2e4, 4e4, 7e4, 1e5, 2e5, 4e5, 7e5,
+                                            2000, 4000, 7000, 1e4, 2e4, 
+                                            4e4, 7e4, 1e5, 2e5, 4e5, 7e5,
                                             1e6, 2e6, 4e6, 7e6, 1.5e7, 2e7, 4.8e7, 8e7])
+
         elif isinstance(arr, np.ndarray) or isinstance(arr, list):
             self.frequency_list = np.array(arr)
+
         else:
             raise ValueError('Must supply a valid array (list or ndarray')
 
@@ -83,7 +85,7 @@ class IMSKPMSweep(IMSKPMPoint):
         '''
         Simulates an IMSKPM sweep over many frequencies
 
-        self.func is the ODE equation used. Change self.func to any valid function
+        self.func is the ODE equation used. Change self.func to any valid function.
 
         totaL_time : float
             pulse time at each frequency, 1.6 s = Asylum IMSKPM time
@@ -101,32 +103,30 @@ class IMSKPMSweep(IMSKPMPoint):
             if verbose:
                 print('Frequency: ', f)
 
-            # Step size
-            #             self.dt = 10**(-(np.log10(f)+2)) #100 points per
-            #             self.dt = min(self.dt, 1e-5)
-
             # Create generation pulse sequence
-            self.pulse_time = 1/f
-            self.pulse_width = 1/(2*f)
-            self.start_time = 1/(4*f)
-            self.make_pulse(self.rise, self.fall, self.pulse_time,
-                            self.start_time, self.pulse_width)
+            # self.pulse_time = 1/f
+            # self.pulse_width = 1/(2*f)
+            # self.start_time = 1/(4*f)
+            # self.make_pulse(self.rise, self.fall, self.pulse_time,
+                            # self.start_time, self.pulse_width)
+                            
+            # Error is not updating args each time because gen changes
+            self.dt = 1e-7
+            self.make_pulse(self.rise, self.fall, frequency=f)
+            
+            # Update the pulse in the case of passing a user function
+            if hasattr(self, 'args'):
+                for n, a in enumerate(self.args):
+                    if isinstance(a, np.ndarray):
+                        
+                        args = list(self.args)
+                        args[n] = self.gen*1e-12 #1e-12 to convert to microns
+                        args[n+1] = self.dt
+                        self.args = tuple(args)
+                        break
+                    
             self.pulse_train(total_time, max_cycles)
-
             self.simulate()
-
-            # Need better step size
-            #             if self._error:
-            #                 print('Rerun')
-            #                 raise ValueError(self.dt, self.args)
-            #                 self.dt /= 10
-            #                 self.pulse_time = 1/f
-            #                 self.pulse_width = 1/(2*f)
-            #                 self.start_time = 1/(4*f)
-            #                 self.make_pulse(self.rise, self.fall, self.pulse_time,
-            #                                 self.start_time, self.pulse_width)
-            #                 self.pulse_train(total_time, max_cycles)
-            #                 self.simulate()
 
             # Collect results
             self.cpd_means.append(self.voltage.mean())
@@ -184,7 +184,7 @@ class IMSKPMSweep(IMSKPMPoint):
 
         return popt
 
-    def plot_sweep(self):
+    def plot_sweep(self, upload_data=None):
         '''
         Plots the average voltage vs frequency on semi-log plot
         '''
@@ -200,6 +200,17 @@ class IMSKPMSweep(IMSKPMPoint):
             ax_voltage.semilogx(np.sort(self._fitting_xaxis),
                                 (expf_2tau(np.sort(self._fitting_xaxis), *self.popt)),
                                 '--', color='k', label=np.round(self.popt[2:]*1e9,2))
+
+        #         graph uploaded data
+        if upload_data is not None:
+            try:
+                ax2 = ax_voltage.twinx()
+                ax2.plot(upload_data[:, 0], upload_data[:, 1], marker='o', color='tab:green',
+                         fillstyle='none', linestyle='none', label='Uploaded data')
+                ax2.set_ylabel(r'Uploaded data - Voltage (V)')
+                ax2.legend(bbox_to_anchor=(1, 0), loc="lower right", bbox_transform=fig_voltage.transFigure)
+            except:
+                raise Warning("Check the uploaded file for errors.")
 
         plt.tight_layout()
 
