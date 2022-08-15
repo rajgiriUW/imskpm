@@ -113,6 +113,7 @@ class IMSKPMSweep(IMSKPMPoint):
             # Error is not updating args each time because gen changes
             self.dt = 1e-7
             self.make_pulse(self.rise, self.fall, frequency=f)
+            self.pulse_train(total_time, max_cycles)
             
             # Update the pulse in the case of passing a user function
             if hasattr(self, 'args'):
@@ -125,7 +126,6 @@ class IMSKPMSweep(IMSKPMPoint):
                         self.args = tuple(args)
                         break
                     
-            self.pulse_train(total_time, max_cycles)
             self.simulate()
 
             # Collect results
