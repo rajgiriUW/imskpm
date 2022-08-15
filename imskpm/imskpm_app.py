@@ -175,6 +175,7 @@ def download_sweep_data(sweep_data):
 
     '''
     df = pd.DataFrame(sweep_data)
+    #     st.write(df)
     csv = convert_df(df)
 
     st.download_button(
@@ -278,13 +279,13 @@ def sim_charge_density():
         with st.spinner('Loading graphs...'):
             device.func = new_dn_dt
             device.simulate()
-            fig_voltage, fig_dndt, fig_zoom, _, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input)
+            fig_voltage, fig_dndt, fig_lifetime, _, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input, lifetime=True)
 
             tab1, tab2, tab3 = st.tabs(['Carriers Generated', 'Carrier Lifetime', 'Voltage'])
             with tab1:
                 st.pyplot(fig_dndt)
             with tab2:
-                st.pyplot(fig_zoom)
+                st.pyplot(fig_lifetime)
             with tab3:
                 st.pyplot(fig_voltage)
 
@@ -334,20 +335,20 @@ def sweep():
     st.write("")
 
     #####################
-    #     st.subheader('Change the Rate Equation')
-    #     options = st.multiselect('What variables will you be using for the sweep?', ['a', 'b', 'c', 'd', 'f', 'h',
-    #                                                                                  'i', 'j', 'k', 'l', 'm', 'o',
-    #                                                                                  'p', 'q', 'r', 's', 'u', 'v',
-    #                                                                                  'w', 'x', 'y', 'z'])
-    #     var_val = {}
-    #     for option in options:
-    #         val = st.number_input(option + " = ", value = 0e0, format='%e')
-    #         var_val[option] = val
+    st.subheader('Change the Rate Equation')
+    options = st.multiselect('What variables will you be using for the sweep?', ['a', 'b', 'c', 'd', 'f', 'h',
+                                                                                 'i', 'j', 'k', 'l', 'm', 'o',
+                                                                                 'p', 'q', 'r', 's', 'u', 'v',
+                                                                                 'w', 'x', 'y', 'z'])
+    var_val = {}
+    for option in options:
+        val = st.number_input(option + " = ", value = 0e0, format='%e')
+        var_val[option] = val
 
-    #     tuple_list = list(var_val.items())
+    tuple_list = list(var_val.items())
 
-    #     global equation
-    #     equation = st.text_input('Input an equation for the sweep', 'g - k1 * n - k2 * n**2 - k3 * n**3')
+    global equation
+    equation = st.text_input('Input an equation for the sweep', 'g - k1 * n - k2 * n**2 - k3 * n**3')
     #####################
 
     upload_error = False
@@ -380,12 +381,12 @@ def sweep():
         devicesweep.intensity=intensity_input
         devicesweep.frequency_list = frequencies_input
         #################
-        #         gen = imskpm.calc_utils.gen_t(devicesweep.absorbance, devicesweep.pulse, devicesweep.thickness)
-        #         scale = 1e-4
-        #         args_tuple = (devicesweep.k1, devicesweep.k2/scale**3, devicesweep.k3/scale**6, gen*scale**3,
-        #                       devicesweep.dt) + tuple(tuple_list)
-        #         devicesweep.args = args_tuple
-        #         devicesweep.func = new_dn_dt
+        gen = imskpm.calc_utils.gen_t(devicesweep.absorbance, devicesweep.pulse, devicesweep.thickness)
+        scale = 1e-4
+        args_tuple = (devicesweep.k1, devicesweep.k2/scale**3, devicesweep.k3/scale**6, gen*scale**3,
+                      devicesweep.dt) + tuple(tuple_list)
+        devicesweep.args = args_tuple
+        devicesweep.func = new_dn_dt
         #################
 
         if start_sweep:
@@ -417,7 +418,7 @@ def sweep():
                         points = np.concatenate((freq_arr, volt_arr), axis=1)
                         download_sweep_data(points)
                         st.write(points)
-    else:
+    elif not valid_range:
         st.warning("Make sure the start frequency is less than the stop frequency.")
 
 
