@@ -114,6 +114,7 @@ class IMSKPMPoint:
 
         return
 
+
     def make_pulse(self,
                    rise = 0,
                    fall = 0,
@@ -183,6 +184,7 @@ class IMSKPMPoint:
             self.pulse_time = 1/frequency
             self.pulse_width = 0.5 * 1/frequency
             self.start_time = 0.25 * 1/frequency
+
         else:
             self.pulse_time = pulse_time
             self.start_time = start_time
@@ -280,6 +282,10 @@ class IMSKPMPoint:
 
         To use a different function, user must supply self.args and self.init
             (the arguments for the function and initial values for the function)
+        
+        Important! If using a user-defined function, the arguments must be scaled
+        to be in units of microns rather than centimeters, for computational accuracy.
+        Typically this means multiply k2 by 1e12 and k3 by 1e24.
 
         Important! If using a user-defined function, the arguments must be scaled
         to be in units of microns rather than centimeters, for computational accuracy.
@@ -418,7 +424,7 @@ class IMSKPMPoint:
         '''
 
         if lifetime:
-
+        
             fig_lifetime, ax_lifetime = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
             idx = np.where(tx >= self.start_time + self.pulse_width)
             if semilog:
@@ -433,3 +439,4 @@ class IMSKPMPoint:
             return fig_voltage, fig_dndt, fig_lifetime, ax_voltage, ax_dndt, ax_lifetime
 
         return fig_voltage, fig_dndt, ax_voltage, ax_dndt
+

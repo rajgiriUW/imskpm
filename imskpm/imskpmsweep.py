@@ -68,7 +68,7 @@ class IMSKPMSweep(IMSKPMPoint):
         if arr is None:
 
             self.frequency_list = np.array([100, 200, 400, 700, 1000,
-                                            2000, 4000, 7000, 1e4, 2e4,
+                                            2000, 4000, 7000, 1e4, 2e4, 
                                             4e4, 7e4, 1e5, 2e5, 4e5, 7e5,
                                             1e6, 2e6, 4e6, 7e6, 1.5e7, 2e7, 4.8e7, 8e7])
 
@@ -108,12 +108,13 @@ class IMSKPMSweep(IMSKPMPoint):
             # self.pulse_width = 1/(2*f)
             # self.start_time = 1/(4*f)
             # self.make_pulse(self.rise, self.fall, self.pulse_time,
-            # self.start_time, self.pulse_width)
-
+                            # self.start_time, self.pulse_width)
+                            
             # Error is not updating args each time because gen changes
             self.dt = 1e-7
             self.make_pulse(self.rise, self.fall, frequency=f)
-
+            self.pulse_train(total_time, max_cycles)
+            
             # Update the pulse in the case of passing a user function
             if hasattr(self, 'args'):
                 for n, a in enumerate(self.args):
@@ -125,7 +126,6 @@ class IMSKPMSweep(IMSKPMPoint):
                         self.args = tuple(args)
                         break
 
-            self.pulse_train(total_time, max_cycles)
             self.simulate()
 
             # Collect results
