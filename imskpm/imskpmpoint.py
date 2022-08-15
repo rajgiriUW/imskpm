@@ -114,12 +114,13 @@ class IMSKPMPoint:
 
         return
 
-    def make_pulse(self, 
-                   rise = 0, 
-                   fall = 0, 
+
+    def make_pulse(self,
+                   rise = 0,
+                   fall = 0,
                    frequency = 0,
                    pulse_time = 10e-3,
-                   start_time = 2.5e-3, 
+                   start_time = 2.5e-3,
                    pulse_width = 5e-3):
         '''
         Creates a single light pulse. The amplitude is defined by the attribute
@@ -127,7 +128,7 @@ class IMSKPMPoint:
         to re-call this function after setting self.intensity.
 
         You can either specify the frequency if non-0 and default to 50% duty cycle
-        starting at 25% of the cycle, or explicitly define timings.        
+        starting at 25% of the cycle, or explicitly define timings.
 
         For a given frequency F, you can use these as reasonable values:
             pulse_time = 1/F
@@ -137,7 +138,7 @@ class IMSKPMPoint:
         Specify a frequency:
         >> device = IMSKPMPoint()
         >> device.make_pulse(frequency=1e6) # makes a 1 MHz pulse (1 us per cycle)
-        
+
         An arbitrary pulse shape
         >> device.make_pulse(pulse_time = 1e-3, start_time=0.5e-3, pulse_width=1e-4)
 
@@ -183,7 +184,8 @@ class IMSKPMPoint:
             self.pulse_time = 1/frequency
             self.pulse_width = 0.5 * 1/frequency
             self.start_time = 0.25 * 1/frequency
-        else:    
+
+        else:
             self.pulse_time = pulse_time
             self.start_time = start_time
             self.pulse_width = pulse_width
@@ -252,7 +254,7 @@ class IMSKPMPoint:
     def kinetics(self, k1, k2, k3, absorbance=None):
         '''
         Set the k1, k2, k3, and absorbance via function call rather than explicitly.
-        
+
         Parameters
         ----------
         k1 : float
@@ -285,6 +287,10 @@ class IMSKPMPoint:
         to be in units of microns rather than centimeters, for computational accuracy.
         Typically this means multiply k2 by 1e12 and k3 by 1e24.
 
+        Important! If using a user-defined function, the arguments must be scaled
+        to be in units of microns rather than centimeters, for computational accuracy.
+        Typically this means multiply k2 by 1e12 and k3 by 1e24.
+
         Returns
         -------
         n_dens : float
@@ -306,12 +312,12 @@ class IMSKPMPoint:
         func = self.func
 
         if hasattr(self, 'args'):
-            
+
             for a in self.args:
                 if type(a)==float:
                     if 0 < a < 1e-8:
                         warnings.warn('Did you scale args by 1e-4 to convert to microns? See docstring for calc_n_dot')
-            
+
             sol = solve_ivp(func, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
                             args = self.args)
         else:
@@ -416,7 +422,7 @@ class IMSKPMPoint:
         '''
         Plots carrier lifetime
         '''
-        
+
         if lifetime:
         
             fig_lifetime, ax_lifetime = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
@@ -429,7 +435,8 @@ class IMSKPMPoint:
             ax_lifetime.set_xlabel(r'Time ($\mu$s)')
             ax_lifetime.set_title(r'Carrier Lifetime, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
             plt.tight_layout()
-        
+
             return fig_voltage, fig_dndt, fig_lifetime, ax_voltage, ax_dndt, ax_lifetime
-        
+
         return fig_voltage, fig_dndt, ax_voltage, ax_dndt
+

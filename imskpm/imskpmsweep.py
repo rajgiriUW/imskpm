@@ -119,13 +119,13 @@ class IMSKPMSweep(IMSKPMPoint):
             if hasattr(self, 'args'):
                 for n, a in enumerate(self.args):
                     if isinstance(a, np.ndarray):
-                        
+
                         args = list(self.args)
                         args[n] = self.gen*1e-12 #1e-12 to convert to microns
                         args[n+1] = self.dt
                         self.args = tuple(args)
                         break
-                    
+
             self.simulate()
 
             # Collect results
