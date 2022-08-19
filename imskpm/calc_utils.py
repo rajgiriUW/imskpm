@@ -8,24 +8,24 @@ def gen_t(absorb, pulse, thickness):
     '''
     Calculates number of carriers based on pulse height and absorbance
     cross-section, evaluated at time t, in electrons/second
-    
+
     pulse: ndArray
         incident light intensity in W/cm^2
-    
+
     absorb : float
         absorbance (a.u.)
-    
+
     thickness : float
         film thickness (cm)
-    
+
     Returns:
     --------
     electrons_area : float
         Calculated electrons per unit area (#/cm^3)
-    
+
     from Jian:
-    1sun roughly corresponds to the order 1E16~1E17 cm^-3 conc, 
-    60 W/m^2 (0.06 sun) is reasonable if approximated to 3e-15. 
+    1sun roughly corresponds to the order 1E16~1E17 cm^-3 conc,
+    60 W/m^2 (0.06 sun) is reasonable if approximated to 3e-15.
 
     photons absorbed = incident light intensity in W/m^2
      Power incident * absorption = Power absorbed (J/s*m^2)
@@ -56,7 +56,7 @@ def calc_n_pulse_train(intensity,
                        ):
     '''
     IM-SKPM method
-    
+
     Calculating the integrated charge density by using a train of pulses
 
     Parameters
@@ -79,7 +79,7 @@ def calc_n_pulse_train(intensity,
         Start time (s). The default is 0.5e-3.
     width : float
         Width of the pulse (s). The default is 1e-3.
-    dt : float 
+    dt : float
         time step (s). The default is None.
     pulse_time : float
         Time per individual pulse (s). The default is 5e-3.
@@ -121,7 +121,7 @@ def calc_n_pulse_train(intensity,
     gen = gen_t(absorbance, impulse, thickness) # electrons / cm^3 / s generated
     
     scale = 1e-4 #1 = /cm^3, 1e-4 = /um^3, 1e2 = /m^2
-    gen = gen * scale**3 #(from /cm^3) 
+    gen = gen * scale**3 #(from /cm^3)
     k2 = k2 / scale**3 #(from cm^3/s)
 
     sol = solve_ivp(dn_dt_g, (ty[0], ty[-1]), (gen[0],), t_eval = ty,
@@ -147,7 +147,7 @@ def calc_n_pulse(intensity,
                  square=False):
     '''
     Calculating the integrated charge density by using a single pulse
-    
+
     Parameters
     ----------
     intensity : float
@@ -197,7 +197,7 @@ def calc_n_pulse(intensity,
     gen = gen_t(absorbance, pp, thickness) # electrons / cm^3 / s generated
     
     scale = 1e-4 #1 = /cm^3, 1e-4 = /um^3, 1e2 = /m^2
-    gen = gen * scale**3 #(from /cm^3) 
+    gen = gen * scale**3 #(from /cm^3)
     k2 = k2 / scale**3 #(from cm^3/s)
     
     sol = solve_ivp(dn_dt_g, [tx[0], tx[-1]], [gen[0]], t_eval = tx,
@@ -215,10 +215,10 @@ def calc_n_pulse(intensity,
     
     return n_dens, sol, gen
 
-def calc_gauss_volt(n_dens, lift = 20e-9, thickness = 500e-7):
+def calc_gauss_volt(n_dens, lift = 20e-9, thickness = 500e-7, carrier = 1):
     '''
     Calculates the voltage using Gauss's law integration at a certain lift height
-    
+
     Parameters
     ----------
     n_dens : flaot
@@ -227,6 +227,8 @@ def calc_gauss_volt(n_dens, lift = 20e-9, thickness = 500e-7):
         The lift height of the tip above the surface (m). The default is 20e-9.
     thickness : float
         Film thickness (m). The default is 500e-7.
+    carrier: int
+        The carrier charge. The default is 1 for positive charge. -1 is for negative.
 
     Returns
     -------
@@ -246,6 +248,7 @@ def calc_gauss_volt(n_dens, lift = 20e-9, thickness = 500e-7):
     
     # From formula for potential from disc of charge
     voltage = 1.6e-19 * 0.5 * n_area / (eps0*epsr) * (np.sqrt(_lift**2 + _radius**2) - _lift)
+    voltage = voltage * carrier
     #voltage = 1.6e-19 * n_area * _area / eps0
     
     return voltage
@@ -267,7 +270,7 @@ def calc_omega0(voltage, resf = 350e3):
         Resonance frequency shift of the cantilever (Hz)
     '''
     
-    k = 24 # N/m 
+    k = 24 # N/m
     fit_from_parms = 0.88
     d2cdz2 = fit_from_parms * 4 *k / resf
     

@@ -53,9 +53,10 @@ class IMSKPMSweep(IMSKPMPoint):
                  k1 = 1e6,
                  k2 = 1e-10,
                  k3 = 0,
-                 thickness = 500e-7):
+                 thickness = 500e-7,
+                 carrier = 1):
 
-        super().__init__(intensity, k1, k2, k3, thickness)
+        super().__init__(intensity, k1, k2, k3, thickness, carrier)
         self.frequencies()
 
         return
@@ -197,9 +198,10 @@ class IMSKPMSweep(IMSKPMPoint):
         ax_voltage.set_title(r'IMSKPM, intensity=' + str(self.intensity*1000) + r' $mW/cm^2$')
 
         if hasattr(self, 'popt'): #has a fit
-            ax_voltage.semilogx(np.sort(self._fitting_xaxis),
-                                (expf_2tau(np.sort(self._fitting_xaxis), *self.popt)),
-                                '--', color='k', label=np.round(self.popt[2:]*1e9,2))
+            ax_voltage.semilogx(np.sort(self.frequency_list), expf_1tau(np.sort(self.frequency_list), *self.popt), 'k--')
+        #             ax_voltage.semilogx(np.sort(self._fitting_xaxis),
+        #                                 (expf_2tau(np.sort(self._fitting_xaxis), *self.popt)),
+        #                                 '--', color='k', label=np.round(self.popt[2:]*1e9,2))
 
         #         graph uploaded data
         if upload_data is not None:

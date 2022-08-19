@@ -15,6 +15,10 @@ from .odes import dn_dt_g
 from matplotlib import pyplot as plt
 import warnings
 
+from .fitting import expf_single, expf_stretched
+from scipy.optimize import curve_fit as cf
+from scipy.special import gamma
+
 class IMSKPMPoint:
     '''
     Generates a single IMSKPM sweep at a particular frequency
@@ -83,7 +87,8 @@ class IMSKPMPoint:
                  k1 = 1e6,
                  k2 = 1e-10,
                  k3 = 0,
-                 thickness = 500e-7):
+                 thickness = 500e-7,
+                 carrier = 1):
 
         # Simulation parameters
         self.dt = 1e-7
@@ -92,6 +97,7 @@ class IMSKPMPoint:
         # Active layer parameters
         self.kinetics(k1, k2, k3, absorbance=1)
         self.thickness = thickness
+        self.carrier = carrier
         self.lift_height = 20e-9
 
         # Excitation parameters
@@ -113,7 +119,6 @@ class IMSKPMPoint:
         self.area = 1e4 * np.pi * 0.5 * (0.61 * wl / NA)**2 # Rayleigh criterion in cm^2
 
         return
-
 
     def make_pulse(self,
                    rise = 0,
@@ -184,7 +189,6 @@ class IMSKPMPoint:
             self.pulse_time = 1/frequency
             self.pulse_width = 0.5 * 1/frequency
             self.start_time = 0.25 * 1/frequency
-
         else:
             self.pulse_time = pulse_time
             self.start_time = start_time
@@ -282,10 +286,6 @@ class IMSKPMPoint:
 
         To use a different function, user must supply self.args and self.init
             (the arguments for the function and initial values for the function)
-        
-        Important! If using a user-defined function, the arguments must be scaled
-        to be in units of microns rather than centimeters, for computational accuracy.
-        Typically this means multiply k2 by 1e12 and k3 by 1e24.
 
         Important! If using a user-defined function, the arguments must be scaled
         to be in units of microns rather than centimeters, for computational accuracy.
@@ -374,12 +374,49 @@ class IMSKPMPoint:
         self.sol = sol
         self.gen = gen
 
-        self.voltage = calc_gauss_volt(self.n_dens, self.lift_height, self.thickness)
+        self.voltage = calc_gauss_volt(self.n_dens, self.lift_height, self.thickness, self.carrier)
         self.omega0 = calc_omega0(self.voltage)
 
         return
 
-    def plot(self, semilog=False, charge_only=True, lifetime=False):
+    def fit_single(self):
+        '''
+        Fits the resulting carrier lifetime curve with the specified function
+
+        '''
+        tx = self.sol.t
+        ndens_arr = self.n_dens[np.where((tx >= self.start_time + self.pulse_width) & (tx <= self.pulse_time))]
+
+        match_idx = len(ndens_arr)
+
+        p0 = (ndens_arr.min(), (ndens_arr.max() - ndens_arr.min()), 1/self.k1)
+        popt, _ = cf(expf_single, tx[0:match_idx], ndens_arr, p0=p0,
+                     bounds = ((-np.inf,-np.inf, 1e-10), (np.inf, np.inf, 1e-2)))
+
+        self.popt = popt
+
+        return popt
+
+    def fit_stretched(self):
+        '''
+        Fits the resulting carrier lifetime curve with the specified function
+
+        '''
+        tx = self.sol.t
+        tx_arr = tx[np.where((tx >= self.start_time + self.pulse_width) & (tx <= self.pulse_time))]
+        ndens_arr = self.n_dens[np.where((tx >= self.start_time + self.pulse_width) & (tx <= self.pulse_time))]
+
+        match_idx = len(ndens_arr)
+
+        p0 = (ndens_arr.min(), (ndens_arr.max() - ndens_arr.min()), 1/self.k1, 1)
+        popt, _ = cf(expf_stretched, tx[0:match_idx], ndens_arr, p0=p0)
+        #                      bounds = ((-np.inf,-np.inf, 1e-10), (np.inf, np.inf, 1e-2)))
+
+        self.popt = popt
+
+        return popt
+
+    def plot(self, semilog=False, charge_only=True, lifetime=False, single=False, stretched=False):
         '''
         Plots the calculated voltage
         '''
@@ -394,7 +431,7 @@ class IMSKPMPoint:
         ax_voltage.set_xlabel(r'Time ($\mu$s)')
         vmean = self.voltage.mean() * np.ones(len(self.sol.t))
         ax_voltage.plot(tx*1e6, vmean, 'r--', label='Voltage Mean: ' + "%.6f" % vmean[0])
-        ax_voltage.legend(bbox_to_anchor=(1, 0), loc="lower right", bbox_transform=fig_voltage.transFigure)
+        ax_voltage.legend(bbox_to_anchor=(1, 0), loc="lower right", bbox_transform=fig_voltage.transFigure, fontsize="small")
         ax_voltage.set_title('Voltage at ' + str(np.round(self.frequency,2)) + ' Hz')
         plt.tight_layout()
 
@@ -403,17 +440,17 @@ class IMSKPMPoint:
         '''
         fig_dndt, ax_dndt = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
         if semilog:
-            ax_dndt.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier density')
+            ax_dndt.semilogy(tx*1e6, self.n_dens, 'r', label='Carrier Density')
         else:
-            ax_dndt.plot(tx*1e6, self.n_dens, 'r', label='Carrier density')
+            ax_dndt.plot(tx*1e6, self.n_dens, 'r', label='Carrier Density')
         ax_dndt.set_ylabel(r'Carrier Density ($cm^{-3}$)')
         if not charge_only:
             ax2 = ax_dndt.twinx()
             ax2.plot(tx*1e6, self.gen, 'b', label='Carrier Generated')
 
             ax2.set_ylabel(r'Carrier Generated ($cm^{-3}$)')
-            ax_dndt.legend(bbox_to_anchor=(1, 0), loc="lower right", bbox_transform=fig_dndt.transFigure)
-            ax2.legend(bbox_to_anchor=(1, -0.07), loc="lower right", bbox_transform=fig_dndt.transFigure)
+            ax_dndt.legend(bbox_to_anchor=(1, 0), loc="lower right", bbox_transform=fig_dndt.transFigure, fontsize="small")
+            ax2.legend(bbox_to_anchor=(1, -0.05), loc="lower right", bbox_transform=fig_dndt.transFigure, fontsize="small")
 
         ax_dndt.set_xlabel(r'Time ($\mu$s)')
         ax_dndt.set_title(r'Carriers generated, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
@@ -426,17 +463,38 @@ class IMSKPMPoint:
         if lifetime:
         
             fig_lifetime, ax_lifetime = plt.subplots(nrows=1,figsize=(6,4),facecolor='white')
-            idx = np.where(tx >= self.start_time + self.pulse_width)
+            tx_arr = tx[np.where((tx >= self.start_time + self.pulse_width) & (tx <= self.pulse_time))]
+            ndens_arr = self.n_dens[np.where((tx >= self.start_time + self.pulse_width) & (tx <= self.pulse_time))]
+            match_idx = len(ndens_arr)
+
             if semilog:
-                ax_lifetime.semilogy(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
+                ax_lifetime.semilogy(tx_arr*1e6, ndens_arr, 'r', label='Carrier Lifetime')
             else:
-                ax_lifetime.plot(tx[idx]*1e6, self.n_dens[idx], 'r', label='Carrier Lifetime')
+                ax_lifetime.plot(tx_arr*1e6, ndens_arr, 'r', label='Carrier Lifetime')
             ax_lifetime.set_ylabel(r'Carrier Density ($cm^{-3}$)')
             ax_lifetime.set_xlabel(r'Time ($\mu$s)')
             ax_lifetime.set_title(r'Carrier Lifetime, intensity=' + str(self.intensity*1000) + ' $mW/cm^2$')
             plt.tight_layout()
 
+            if hasattr(self, 'popt'): #has a fit
+                if single:
+                    # monoexponential fit line
+                    if semilog:
+                        ax_lifetime.semilogy(tx_arr*1e6, expf_single(tx[0:match_idx], *self.popt), 'k--')
+                    else:
+                        ax_lifetime.plot(tx_arr*1e6, expf_single(tx[0:match_idx], *self.popt), 'k--')
+                    ax_lifetime.legend(['Lifetime', f'$\\tau$ = {"%.3g" % self.popt[2]}'], fontsize="small")
+                elif stretched:
+                    # stretched exponential fit line
+                    if semilog:
+                        ax_lifetime.semilogy(tx_arr*1e6, expf_stretched(tx[0:match_idx], *self.popt), 'k--')
+                    else:
+                        ax_lifetime.plot(tx_arr*1e6, expf_stretched(tx[0:match_idx], *self.popt), 'k--')
+                    # popt: [y0, a, tau, beta]
+                    special_tau = ((self.popt[2]/self.popt[3]) * gamma(1/self.popt[3]))
+                    ax_lifetime.legend(['Lifetime', f'$\\tau$ = {"%.3g" % self.popt[2]} \n $\\beta$ = {"{:.6f}".format(self.popt[3])} \n $\\langle \\tau \\rangle$ = {"%.3g" %special_tau}'], fontsize="small")
+
+
             return fig_voltage, fig_dndt, fig_lifetime, ax_voltage, ax_dndt, ax_lifetime
 
         return fig_voltage, fig_dndt, ax_voltage, ax_dndt
-
