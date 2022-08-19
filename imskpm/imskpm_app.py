@@ -12,10 +12,6 @@ from matplotlib import pyplot as plt
 import imskpm
 from imskpm.imskpmpoint import IMSKPMPoint
 from imskpm.imskpmsweep import IMSKPMSweep
-from imskpm.fitting import cost_fit, expf_1tau, expf_2tau
-
-##----------------------------------------------
-## Heading and introduction
 
 st.set_page_config(page_title='IM-SKPM')
 
@@ -73,6 +69,7 @@ def sidebar_input():
     k3_input = st.sidebar.number_input('The third order recombination rate, Auger recombination')
 
     # Determine the excitation
+    global carrier_input
     global rise_input
     global fall_input
     global intensity_input
@@ -80,6 +77,13 @@ def sidebar_input():
     global NA_input
     st.sidebar.markdown("""---""")
     st.sidebar.subheader('Change the Excitation')
+
+    carrier_input = st.sidebar.select_slider('Holes/Electrons', options=['positive','negative'], value='positive')
+
+    if carrier_input == 'negative':
+        carrier_input = -1
+    else:
+        carrier_input = 1
 
     col1, col2 = st.sidebar.columns(2)
     with col1:
@@ -110,6 +114,7 @@ def sidebar_input():
     sidebar_data['k1'] = k1_input
     sidebar_data['k2'] = k2_input
     sidebar_data['k3'] = k3_input
+    sidebar_data['Holes/Electrons'] = carrier_input
     sidebar_data['Rise Time (s)'] = rise_input
     sidebar_data['Fall Time (s)'] = fall_input
     sidebar_data['Intensity'] = intensity_input
@@ -164,46 +169,25 @@ def download_sidebar_data(sidebar_data):
     st.sidebar.write('___')
 
 
-def download_sweep_data(sweep_data):
+def download_points(data_points, name):
     '''
-    Downloads sweep data points as a csv file
+    Downloads data points as a csv file
 
     Parameters
     ----------
-    sweep_data : ndarray
+    data_points : ndarray
         An ndarray of the data points to download
 
     '''
-    df = pd.DataFrame(sweep_data)
-    #     st.write(df)
+    df = pd.DataFrame(data_points)
     csv = convert_df(df)
 
     st.download_button(
         label="Download points as CSV",
         data=csv,
-        file_name='sweep_data.csv',
+        file_name=f'{name}.csv',
         mime='text/csv',
     )
-
-def download_n_dens(n_dens):
-    '''
-    Downloads n_dens as a csv file
-
-    Parameters
-    ----------
-    n_dens : ndarray
-        An ndarray of n_dens to download
-
-    '''
-    df = pd.DataFrame(n_dens)
-    csv = convert_df(df)
-    st.download_button(
-        label="Download Carrier Densities as CSV",
-        data=csv,
-        file_name='n_dens.csv',
-        mime='text/csv',
-    )
-
 
 # define a new function
 # you generally always want the first two lines (to find the input light pulse value)
@@ -226,27 +210,7 @@ def sim_charge_density():
 
     st.header('Simulate Charge Density')
 
-    with st.expander(label="See Current Values",expanded=False):
-        st.write(sidebar_data)
-
-    # toggles
-    col1, col2 = st.columns(2, gap="large")
-    with col1:
-        semilog_input = st.select_slider('Semilog', options=['off','on'], value='off')
-    with col2:
-        charge_input = st.select_slider('Charge only', options=['off', 'on'], value='off')
-
-    if semilog_input=='on':
-        semilog_input=True
-    else:
-        semilog_input=False
-
-    if charge_input=='on':
-        charge_input=True
-    else:
-        charge_input=False
-
-    device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input)
+    device = IMSKPMPoint(k1=k1_input, k2=k2_input, k3=k3_input, carrier=carrier_input)
     device.lift_height = lift_input * 1e-9
     device.exc_source(intensity=intensity_input, wl=wl_input * 1e-9, NA=NA_input)
     device.make_pulse(rise=rise_input, fall=fall_input, pulse_time = 1/frequency,
@@ -256,7 +220,7 @@ def sim_charge_density():
     #     i = 1e3 # 10^15/cm^3 into /um^3
     gen = imskpm.calc_utils.gen_t(device.absorbance, device.pulse, device.thickness)
 
-    st.subheader('Change the Rate Equation')
+    st.write('**Change the Rate Equation**')
     options = st.multiselect('What variables will you be using?', ['a', 'b', 'c', 'd', 'f', 'h',
                                                                    'i', 'j', 'k', 'l', 'm', 'o',
                                                                    'p', 'q', 'r', 's', 'u', 'v',
@@ -275,11 +239,55 @@ def sim_charge_density():
     global equation
     equation = st.text_input('Input an Equation', 'g - k1 * n - k2 * n**2 - k3 * n**3')
 
-    try:
+
+    # toggles + radio buttons
+    col1, col2, col3 = st.columns(3, gap="large")
+    with col1:
+        semilog_input = st.select_slider('Semilog', options=['off','on'], value='off')
+    with col2:
+        charge_input = st.select_slider('Charge only', options=['off', 'on'], value='off')
+    with col3:
+        fit = st.radio("Fit line for carrier lifetime plot", ('Monoexponential', 'Stretched exponential'))
+
+    # adjust semilog
+    if semilog_input=='on':
+        semilog_input=True
+    else:
+        semilog_input=False
+
+    # adjust charge
+    if charge_input=='on':
+        charge_input=True
+    else:
+        charge_input=False
+
+    # adjust fit
+    single_input = False
+    stretched_input = False
+    if fit == 'Monoexponential':
+        single_input = True
+    else:
+        stretched_input = True
+
+    # display variable values
+    #     with st.expander(label="See Current Values",expanded=False):
+    #         st.write(sidebar_data)
+
+    try: # equation error checking; comment out try block when debugging
         with st.spinner('Loading graphs...'):
             device.func = new_dn_dt
             device.simulate()
-            fig_voltage, fig_dndt, fig_lifetime, _, _, _ = device.plot(semilog=semilog_input, charge_only=charge_input, lifetime=True)
+
+            if single_input:
+                popt = device.fit_single()
+            else:
+                popt = device.fit_stretched()
+
+            fig_voltage, fig_dndt, fig_lifetime, _, _, ax_lifetime = device.plot(semilog=semilog_input,
+                                                                                 charge_only=charge_input,
+                                                                                 lifetime=True,
+                                                                                 single=single_input,
+                                                                                 stretched=stretched_input)
 
             tab1, tab2, tab3 = st.tabs(['Carriers Generated', 'Carrier Lifetime', 'Voltage'])
             with tab1:
@@ -289,8 +297,15 @@ def sim_charge_density():
             with tab3:
                 st.pyplot(fig_voltage)
 
-            # Allow n_dens download
-            download_n_dens(device.n_dens)
+            # Allow point download
+            t_arr = (device.sol.t.copy())*1e6
+            t_arr = t_arr.reshape(len(t_arr), 1)
+            n_dens_arr = device.n_dens.copy()
+            n_dens_arr = n_dens_arr.reshape(len(n_dens_arr), 1)
+            points = np.concatenate((t_arr, n_dens_arr), axis=1)
+
+
+            download_points(points, 'carrier_density_v_time')
     except:
         st.warning('Equation not valid. Please check for errors.')
 
@@ -307,22 +322,29 @@ def sweep():
         st.write('k1 = ', k1_input, ', k2 ', k2_input, ', k3 = ', k3_input)
     st.write("")
 
-    # Determine lift height and intensity
-    col1, col2 = st.columns(2, gap="medium")
+    # Determine lift height, total time, and max cycles
+    col1, col2, col3 = st.columns(3, gap='medium')
     with col1:
         lh_input = st.number_input('Lift Height (nm)', min_value=0, max_value=10000, value=20, key=2)
     with col2:
-        intensity_input = st.number_input('Intensity (0.1 = 100mW/cm^2 = 1 Sun)',
-                                          min_value=0e0, max_value=1e8, value=1e1, format='%e')
-    # Determine total time and max cycles
-    col3, col4 = st.columns(2, gap="medium")
-    with col3:
         total_t_input = st.number_input('Total time (s)', value=1.6)
-    with col4:
+    with col3:
         cycles_input = st.number_input('Max cycles', min_value=1, max_value=50, value=20)
 
+    # Determine intensity and carrier (+/-)
+    c1, c2 = st.columns(2, gap='large')
+    with c1:
+        intensity_input = st.number_input('Intensity (0.1 = 100mW/cm^2 = 1 Sun)',
+                                          min_value=0e0, max_value=1e8, value=1e1, format='%e')
+    with c2:
+        sweep_carrier_input = st.select_slider('Holes/Electrons', options=['positive','negative'], value='positive', key=2)
+
+    if sweep_carrier_input == 'negative':
+        sweep_carrier_input = -1
+    else:
+        sweep_carrier_input = 1
+
     # Choose start, stop, and num of frequencies
-    st.write("")
     st.write("*Select a range of frequencies:*")
     c1, c2, c3= st.columns(3, gap="medium")
     with c1:
@@ -332,10 +354,8 @@ def sweep():
     with c3:
         num_freq_input = st.number_input('Number of frequencies', min_value=2, max_value=50, value=7)
 
-    st.write("")
-
     #####################
-    st.subheader('Change the Rate Equation')
+    st.write('**Change the Rate Equation**')
     options = st.multiselect('What variables will you be using for the sweep?', ['a', 'b', 'c', 'd', 'f', 'h',
                                                                                  'i', 'j', 'k', 'l', 'm', 'o',
                                                                                  'p', 'q', 'r', 's', 'u', 'v',
@@ -373,7 +393,7 @@ def sweep():
 
     if valid_range and not upload_error:
         frequencies_input = np.logspace(np.log10(start_freq_input), np.log10(stop_freq_input), num_freq_input)
-        devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input)
+        devicesweep = IMSKPMSweep(k1=k1_input, k2=k2_input, k3=k3_input, carrier=sweep_carrier_input)
         devicesweep.k1 = k1_input
         devicesweep.k2 = k2_input
         devicesweep.k3 = k3_input
@@ -400,9 +420,8 @@ def sweep():
                 st.warning("Equation not valid. Please check for errors.")
 
             if valid_equation:
-                fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot_sweep(sweep_input)
                 popt = devicesweep.fit(cfit=False)
-                ax_voltage.plot(devicesweep.frequency_list, expf_1tau(devicesweep.frequency_list, *popt), 'r--')
+                fig_voltage, fig_dndt, ax_voltage, _ = devicesweep.plot_sweep(sweep_input)
 
                 st.write("**Fit Line:**")
                 st.write('$Y_0 = $', popt[0], '$A = $', popt[1], '$\\tau = $', popt[2])
@@ -412,11 +431,12 @@ def sweep():
 
                 with st.expander("See Data Points"):
                     with st.spinner('Loading data points...'):
-                        freq_arr = frequencies_input.reshape(len(frequencies_input), 1)
+                        freq_arr = (frequencies_input.copy()).reshape(len(frequencies_input), 1)
                         voltages = np.array(devicesweep.cpd_means)
                         volt_arr = voltages.reshape(len(voltages), 1)
                         points = np.concatenate((freq_arr, volt_arr), axis=1)
-                        download_sweep_data(points)
+                        download_points(points, 'sweep_data')
+                        st.write("Frequency (Hz) | Voltage (V)")
                         st.write(points)
     elif not valid_range:
         st.warning("Make sure the start frequency is less than the stop frequency.")

@@ -66,6 +66,46 @@ def expf_2tau(f, y0, a, taub, taud):
     
     return y0 + 0.5*a*(1-exptaub*exptaud) + a*f*(taud-taub)*(1-exptaud)*(1-exptaub)
 
+def expf_single(t, y0, a, tau):
+    '''
+    Monoexponential function for carrier lifetime.
+
+    Parameters
+    ----------
+    t : float
+        time axis
+    y0 : float
+        y-offset
+    a : float
+        amplitude
+    tau : float
+        time constant
+
+    '''
+
+    return y0 + a*np.exp(-t/tau)
+
+def expf_stretched(t, y0, a, tau, beta):
+    '''
+    Stretched exponential function for carrier lifetime.
+
+    Parameters
+    ----------
+    t : float
+        time axis
+    beta: float
+
+    y0 : float
+        y-offset
+    a : float
+        amplitude
+    tau : float
+        time constant
+
+    '''
+
+    return y0 + a*np.exp(-(t/tau)**beta)
+
 def cost_fit(f, data, init):
     '''
     Uses cost-minimization fitting instead of standard L-Q fitting
