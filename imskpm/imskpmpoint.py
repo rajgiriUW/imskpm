@@ -39,7 +39,7 @@ class IMSKPMPoint:
     >> from imskpm.imskpmpoint import IMSKPMPoint
     >> device = IMSKPMPoint()
     >> frequency = 100 # 100 Hz
-    >> device.make_pulse(0,0,1/frequency,1/(4*frequency),1/(2*frequency))
+    >> device.make_pulse(0,0,0, 1/frequency,1/(4*frequency),1/(2*frequency))
     >> device.simulate()
     >> device.plot()
 
